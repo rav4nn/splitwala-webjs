@@ -1,0 +1,16 @@
+# Environment variables
+.env
+
+# whatsapp-web.js saves your WhatsApp session here — keep it off of git
+.wwebjs_auth/
+.wwebjs_cache/
+
+# Node dependencies
+node_modules/
+
+# Expense data — contains real names and amounts, keep it private
+data.json
+data/
+
+# PM2 log output
+logs/

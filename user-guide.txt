@@ -1,0 +1,64 @@
+/statusSplitWala User Guide
+====================
+
+SplitWala is a WhatsApp bot for easy expense splitting and balance tracking within groups.
+
+Core Commands
+-------------
+
+/split <total> [by <person> <amount> ...] [<person> owes <amount> ...] [for <description>]
+    Record a new expense.
+    
+    Examples:
+    - Equal Split (Everyone in group): /split 600 for dinner
+    - Equal Split (Specific people): /split 600 @Mohit @Vipul and me
+    - Complex Split (Manual contributions and debts):
+      /split 4000 by me 3000 by @Vipul 1000, @Vipul owes 2500, @Mohit owes 1500 for groceries
+
+/paid <amount> [from/by <person>] [to <person>]
+    Record a payment between members.
+    
+    Examples:
+    - You paid Mohit: /paid 200 to @Mohit
+    - Mohit paid you: /paid 200 from @Mohit
+    - Direct: /paid 500 from @Vipul to @Mohit
+    - Natural Language: /paid 2000 to me by @Mohit
+    - Clear all debt: /paid @Mohit to me (Settle everything Mohit owes you)
+
+/balances [@person]
+    Check net balances.
+    
+    Examples:
+    - Your summary: /balances
+    - Your balance with someone specific: /balances @Mohit
+
+/summary
+    Show a group scoreboard with everyone's net position.
+
+/history [count] [@person]
+    View recent transactions. Default count is 5, max is 20.
+    
+    Examples:
+    - Recent 5: /history
+    - Recent 10: /history 10
+    - Recent involving Mohit: /history @Mohit 10
+
+/delete [id | last]
+    Delete a transaction and reverse its balance impact.
+    
+    Examples:
+    - Delete most recent: /delete last
+    - Delete specific: /delete abc123
+    Note: Requires confirmation by typing the command followed by 'confirm'.
+
+/resetall
+    Wipe all data for the current group.
+    Requires confirmation by typing '/resetall confirm'.
+
+Tips
+----
+- Use "me", "i", or "myself" to refer to yourself.
+- You can mention people with @ or just type their name if they are in the group.
+- Descriptions can be added to /split using the 'for' keyword at the end.
+- Extra spaces and capitalization are ignored.
+- Amounts should be numbers up to 1,000,000.
