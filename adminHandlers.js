@@ -5,6 +5,7 @@
 const {
   stripSuffix,
   getName,
+  registerName,
   formatCurrency,
   getMentionedPhones,
   cacheNames,
@@ -109,27 +110,40 @@ async function getDisplayName(client, userId) {
 
 /**
  * Get cached display names for multiple users.
- * Tries the live WA API first; falls back to store.names (populated at command
- * time by ensureGroupCached), then to a truncated phone as last resort.
+ * Normalizes phones through the alias system first (resolves LIDs to real phones),
+ * persists any found name to SQLite, and falls back to the name cache as last resort.
  * Returns Map<userId, displayName>
  */
 async function getCachedDisplayNames(client, userIds) {
   const nameCache = new Map();
   const uniqueIds = [...new Set(userIds.filter(Boolean))];
 
-  // Get names in parallel for performance
   const namePromises = uniqueIds.map(async (userId) => {
     const phone = userId.split("@")[0];
-    try {
-      const contact = await client.getContactById(userId);
-      const name = contact.pushname || contact.name || getName(phone);
-      nameCache.set(userId, name);
-      return { userId, name };
-    } catch {
-      const name = getName(phone);
-      nameCache.set(userId, name);
-      return { userId, name };
+    const canonicalPhone = normalizeUserId(phone);
+
+    // Try canonical JID first (resolves LIDs to real phones via alias system),
+    // then original userId as fallback
+    const jidsToTry = canonicalPhone !== phone
+      ? [`${canonicalPhone}@c.us`, userId]
+      : [userId];
+
+    for (const jid of jidsToTry) {
+      try {
+        const contact = await client.getContactById(jid);
+        const name = contact.pushname || contact.name;
+        if (name) {
+          registerName(canonicalPhone, name);  // persist to SQLite
+          nameCache.set(userId, name);
+          return { userId, name };
+        }
+      } catch (_) {}
     }
+
+    // Fall back to SQLite cache (getName normalizes via alias system internally)
+    const name = getName(phone);
+    nameCache.set(userId, name);
+    return { userId, name };
   });
 
   await Promise.all(namePromises);
