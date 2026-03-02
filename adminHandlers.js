@@ -122,11 +122,13 @@ async function getCachedDisplayNames(client, userIds) {
     const phone = userId.split("@")[0];
     const canonicalPhone = normalizeUserId(phone);
 
-    // Try canonical JID first (resolves LIDs to real phones via alias system),
-    // then original userId as fallback
-    const jidsToTry = canonicalPhone !== phone
-      ? [`${canonicalPhone}@c.us`, userId]
-      : [userId];
+    // Try JIDs in order: canonical @c.us (if alias resolved), then phone @c.us,
+    // then phone @lid (handles LID phones stored in old transactions with no alias yet)
+    const jidsToTry = [
+      ...(canonicalPhone !== phone ? [`${canonicalPhone}@c.us`] : []),
+      `${phone}@c.us`,
+      `${phone}@lid`,
+    ];
 
     for (const jid of jidsToTry) {
       try {
