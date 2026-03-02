@@ -373,17 +373,21 @@ async function extractParticipants(text, msg, client, chat, payerFullId = null) 
     return { participants, error: null };
   } else {
     // Case B: no "between" keyword
-    // Use mentionedIds ONLY (excluding bot and sender)
+    // Use mentionedIds ONLY (excluding bot, sender, and the specified payer)
     const mentionedIds = msg.mentionedIds || [];
     const participants = [];
     const seenPhones = new Set();
-    
+    const payerPhone = payerFullId ? normalizeUserId(stripSuffix(payerFullId)) : null;
+
     for (const fullId of mentionedIds) {
       if (botId && fullId === botId) continue;
-      
+
       const phone = stripSuffix(fullId);
       const canonicalPhone = normalizeUserId(phone);
-      
+
+      // Skip the specified payer — they are tracked in contributions, not participants
+      if (payerPhone && canonicalPhone === payerPhone) continue;
+
       // Skip sender unless "me" appears in text
       const hasMeKeyword = /\b(me|i|myself)\b/i.test(text);
       if (canonicalPhone === normalizeUserId(senderId) && !hasMeKeyword) {
