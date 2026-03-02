@@ -1198,6 +1198,40 @@ async function handleSharesSplit(msg, client, chat, senderId, senderFullId, part
 }
 
 
+// ─── /split debug helpers ─────────────────────────────────────────────────────
+
+/**
+ * Classify a raw WhatsApp JID.
+ * Returns 'jid' for phone-based (@c.us + digit prefix), 'lid' for @lid, or 'unknown'.
+ */
+function classifyId(id) {
+  if (!id) return 'unknown';
+  if (id.endsWith('@lid')) return 'lid';
+  if (id.endsWith('@c.us') && /^\d+@/.test(id)) return 'jid';
+  return 'unknown';
+}
+
+/**
+ * Attempt to resolve a raw JID to a canonical phone and display name.
+ * Never throws — falls back to the raw stripped ID on failure.
+ */
+async function debugIdentity(client, id) {
+  let resolved = stripSuffix(id);
+  let name = null;
+  try {
+    const contact = await client.getContactById(id);
+    if (contact) {
+      name = contact.pushname || contact.name || null;
+      if (contact.number) {
+        resolved = contact.number;
+      } else if (contact.id?._serialized?.endsWith('@c.us')) {
+        resolved = stripSuffix(contact.id._serialized);
+      }
+    }
+  } catch (_) {}
+  return { resolved, name };
+}
+
 // ─── /split ───────────────────────────────────────────────────────────────────
 
 async function handleSplit(msg, client) {
@@ -1218,6 +1252,28 @@ async function handleSplit(msg, client) {
   for (const fullId of (msg.mentionedIds || [])) {
     const phone = stripSuffix(fullId);
     if (!participantMap[phone]) participantMap[phone] = fullId;
+  }
+
+  // DEBUG: warn in chat for any LID/unknown JID among the mentioned IDs.
+  // Fire-and-forget so /split is never blocked.
+  {
+    const warnedIds = new Set();
+    for (const fullId of (msg.mentionedIds || [])) {
+      const type = classifyId(fullId);
+      if (type !== 'jid' && !warnedIds.has(fullId)) {
+        warnedIds.add(fullId);
+        debugIdentity(client, fullId).then(({ resolved, name }) => {
+          const warning = [
+            '⚠️ Identity Warning:',
+            `Raw ID: ${fullId}`,
+            `Type: ${type === 'lid' ? 'LID' : 'Unknown'}`,
+            `Resolved to: ${resolved}`,
+            `Name (if available): ${name || 'unknown'}`,
+          ].join('\n');
+          client.sendMessage(chatId, warning).catch(() => {});
+        }).catch(() => {});
+      }
+    }
   }
 
   // STEP 1: Remove label from text BEFORE parsing payer/participants
