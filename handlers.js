@@ -1518,11 +1518,11 @@ async function handleBalances(msg, client) {
 
     let reply;
     if (result.settled) {
-      reply = `✅ You and @${targetCanonical} are fully settled up!`;
+      reply = `💸 You're all settled up with @${targetCanonical}!`;
     } else if (result.owes === senderCanonical) {
-      reply = `🔴 You owe @${targetCanonical} ${formatCurrency(result.amount)}`;
+      reply = `💸 You owe ₹${result.amount.toFixed(2)}\n\n🔴 @${targetCanonical} ₹${result.amount.toFixed(2)}`;
     } else {
-      reply = `🟢 @${targetCanonical} owes you ${formatCurrency(result.amount)}`;
+      reply = `💸 You get ₹${result.amount.toFixed(2)}\n\n🟢 @${targetCanonical} ₹${result.amount.toFixed(2)}`;
     }
 
     await client.sendMessage(chatId, reply, { mentions: [senderFullId, target.fullId] });
@@ -1546,41 +1546,89 @@ async function handleBalances(msg, client) {
     participantMap[canonicalPhone] = p.id._serialized;
   }
 
-  const lines         = [];
+  // Separate balances into pay (you owe others) and receive (others owe you)
+  const payEntries = [];
+  const receiveEntries = [];
   const mentionFullIds = [];
   const uniqueParticipants = new Set();
-  
+
   for (const phone of allParticipants) {
     const canonicalPhone = normalizeUserId(phone);
     if (uniqueParticipants.has(canonicalPhone)) continue;
     uniqueParticipants.add(canonicalPhone);
-    
+
     const result = getNetBetween(chatId, senderCanonical, canonicalPhone);
     if (result.settled) continue;
-    
+
     const fullId = participantMap[canonicalPhone];
     if (fullId) mentionFullIds.push(fullId);
     const display = fullId ? `@${canonicalPhone}` : getName(canonicalPhone);
-    
+
     if (result.owes === senderCanonical) {
-      lines.push(`🔴 You owe ${display} ${formatCurrency(result.amount)}`);
+      // You owe this person
+      payEntries.push({
+        name: display,
+        amount: Math.abs(result.amount),
+        canonicalPhone
+      });
     } else {
-      lines.push(`🟢 ${display} owes you ${formatCurrency(result.amount)}`);
+      // This person owes you
+      receiveEntries.push({
+        name: display,
+        amount: Math.abs(result.amount),
+        canonicalPhone
+      });
     }
   }
 
+  // Sort pay entries by highest amount first
+  payEntries.sort((a, b) => b.amount - a.amount);
+  
+  // Sort receive entries by highest amount first
+  receiveEntries.sort((a, b) => b.amount - a.amount);
+
   const net = getOverallNet(chatId, senderCanonical);
+  const netAmount = Math.abs(net);
+  
+  // Build header based on net balance
   let header;
-  if (net === 0 && lines.length === 0) {
-    header = `✅ You are all square`;
+  if (net === 0 && payEntries.length === 0 && receiveEntries.length === 0) {
+    header = `💸 You're all settled up`;
   } else if (net > 0) {
-    header = `🟢 In total you are owed ${formatCurrency(net)}`;
+    header = `💸 Overall: You get ₹${net.toFixed(2)}`;
   } else {
-    header = `🔴 In total you owe ${formatCurrency(Math.abs(net))}`;
+    header = `💸 Overall: You owe ₹${netAmount.toFixed(2)}`;
+  }
+
+  // Build response lines
+  const responseLines = [header];
+  
+  // Add blank line after header
+  responseLines.push('');
+  
+  // Add Pay section if there are pay entries
+  if (payEntries.length > 0) {
+    responseLines.push('Pay:');
+    for (const entry of payEntries) {
+      responseLines.push(`🔴 ${entry.name} ₹${entry.amount.toFixed(2)}`);
+    }
+    
+    // Add blank line between sections if there are receive entries
+    if (receiveEntries.length > 0) {
+      responseLines.push('');
+    }
+  }
+  
+  // Add Receive section if there are receive entries
+  if (receiveEntries.length > 0) {
+    responseLines.push('Receive:');
+    for (const entry of receiveEntries) {
+      responseLines.push(`🟢 ${entry.name} ₹${entry.amount.toFixed(2)}`);
+    }
   }
 
   const sendOpts = mentionFullIds.length > 0 ? { mentions: mentionFullIds } : {};
-  await client.sendMessage(chatId, [header, ...lines].join('\n'), sendOpts);
+  await client.sendMessage(chatId, responseLines.join('\n'), sendOpts);
 }
 
 
