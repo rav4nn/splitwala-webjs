@@ -17,7 +17,7 @@ const qrcode                = require('qrcode-terminal');
 // Initialise SQLite database before anything else
 require('./db');
 
-const { cacheNames, stripSuffix, saveData } = require('./store');
+const { cacheNames, stripSuffix, saveData, findCanonicalPhone, discoverAndRegisterMappings } = require('./store');
 const { handleSplit, handleBalances, handlePaid, handleGot, handleHelp, handleSummary } = require('./handlers');
 const { handleResetAll, handleHistory, handleDelete }    = require('./adminHandlers');
 
@@ -70,6 +70,20 @@ async function ensureGroupCached(msg, client) {
       await cacheNames(phones, client);
       saveData();
     }
+
+    // Resolve @lid participants → canonical phone so LIDs never land in
+    // transactions as unknown users.  Runs in parallel; failures are silently
+    // ignored (LID stays unresolved — no worse than before this change).
+    const lidParticipants = (chat.participants || [])
+      .filter(p => p.id._serialized.endsWith('@lid'));
+    await Promise.all(lidParticipants.map(async (p) => {
+      const lidPhone = stripSuffix(p.id._serialized);
+      if (findCanonicalPhone(lidPhone)) return; // already mapped — skip API call
+      try {
+        const contact = await client.getContactById(p.id._serialized);
+        await discoverAndRegisterMappings(lidPhone, contact);
+      } catch (_) {}
+    }));
   } catch (_) {}
 }
 

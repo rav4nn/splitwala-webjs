@@ -35,7 +35,7 @@ const {
  */
 async function resolveIdentity(text, msg, client, chat) {
   const senderFullId = await resolveSenderJid(msg, chat, client);
-  const senderId     = stripSuffix(senderFullId);
+  const senderId     = normalizeUserId(stripSuffix(senderFullId));
   const botId        = client.info?.wid?._serialized;
 
   // "me / I / myself" always maps to the message sender
@@ -275,7 +275,7 @@ async function extractPayer(text, msg, client, chat) {
  */
 async function extractParticipants(text, msg, client, chat, payerFullId = null) {
   const senderFullId = await resolveSenderJid(msg, chat, client);
-  const senderId = stripSuffix(senderFullId);
+  const senderId = normalizeUserId(stripSuffix(senderFullId));
   const botId = client.info?.wid?._serialized;
 
   // Check for @all keyword
@@ -621,7 +621,7 @@ async function parseSharesSplit(text, msg, client, chat, payerFullId = null) {
     
     // Get sender info
     const senderFullId = await resolveSenderJid(msg, chat, client);
-    const senderId = stripSuffix(senderFullId);
+    const senderId = normalizeUserId(stripSuffix(senderFullId));
     
     try {
       // Get all group participants
@@ -772,7 +772,7 @@ async function parsePercentageSplit(text, msg, client, chat, payerFullId = null)
     
     // Get sender info
     const senderFullId = await resolveSenderJid(msg, chat, client);
-    const senderId = stripSuffix(senderFullId);
+    const senderId = normalizeUserId(stripSuffix(senderFullId));
     
     try {
       // Get all group participants
@@ -1205,7 +1205,7 @@ async function handleSplit(msg, client) {
   const text         = msg.body.trim();
   const chat         = await msg.getChat();
   const senderFullId = await resolveSenderJid(msg, chat, client);
-  const senderId     = stripSuffix(senderFullId);
+  const senderId     = normalizeUserId(stripSuffix(senderFullId));
 
   // Build phone → verified fullId map so mentions always use real WhatsApp JIDs,
   // never reconstructed ones that may be invalid (LIDs, group JIDs, etc.)
@@ -1466,7 +1466,7 @@ async function handleBalances(msg, client) {
   const text         = msg.body.trim();
   const chat         = await msg.getChat();
   const senderFullId = await resolveSenderJid(msg, chat, client);
-  const senderId     = stripSuffix(senderFullId);
+  const senderId     = normalizeUserId(stripSuffix(senderFullId));
 
   const words = text.split(/\s+/);
 
@@ -1626,7 +1626,7 @@ async function handleSettlement(msg, client, isPaidCommand) {
   const text         = msg.body.trim();
   const chat         = await msg.getChat();
   const senderFullId = await resolveSenderJid(msg, chat, client);
-  const senderId     = stripSuffix(senderFullId);
+  const senderId     = normalizeUserId(stripSuffix(senderFullId));
   
   // Parse command
   const parseResult = isPaidCommand 

@@ -26,9 +26,9 @@ function stripSuffix(waId) {
   return waId ? waId.split('@')[0] : waId;
 }
 
-/** Extract phone numbers from all @-mentions on a message. */
+/** Extract phone numbers from all @-mentions on a message, normalized to canonical phones. */
 function getMentionedPhones(msg) {
-  return (msg.mentionedIds || []).map(stripSuffix);
+  return (msg.mentionedIds || []).map(id => normalizeUserId(stripSuffix(id)));
 }
 
 // ── Formatting ─────────────────────────────────────────────────────────────────
@@ -121,27 +121,38 @@ function normalizeUserId(userId) {
 
 /**
  * Auto-discover mappings from a WhatsApp contact object.
- * Called by cacheNames() after every successful getContactById().
+ * Works in two modes depending on `phone`:
+ *   - phone is a regular @c.us phone  → stays canonical; if contact.id differs,
+ *     register contactPhone as an alternate alias of phone.
+ *   - phone is a LID (≥15 digits)     → the @c.us contactId is the canonical;
+ *     register phone (LID) as alias of contactPhone.
+ * Called by cacheNames() and by the @lid resolution loop in ensureGroupCached().
  */
 async function discoverAndRegisterMappings(phone, contact) {
   if (!contact) return;
 
   const name = contact.pushname || contact.name;
-  if (name) {
-    registerName(phone, name);
-    registerAlias(name.toLowerCase(), phone, 'name');
-  }
+  const contactId = contact.id?._serialized;
 
-  try {
-    const contactId = contact.id?._serialized;
-    if (contactId && contactId.includes('@c.us')) {
-      const contactPhone = stripSuffix(contactId);
-      if (contactPhone !== phone) {
-        const type = /^\d{10,}$/.test(contactPhone) ? 'lid' : 'phone';
-        registerAlias(contactPhone, phone, type);
+  let canonicalPhone = phone;
+  if (contactId && contactId.endsWith('@c.us')) {
+    const contactPhone = stripSuffix(contactId);
+    if (phone !== contactPhone) {
+      if (/^\d{15,}$/.test(phone)) {
+        // Input is a LID — the @c.us contact JID is the real canonical phone
+        canonicalPhone = contactPhone;
+        registerUserMapping(canonicalPhone, phone, 'lid');
+      } else {
+        // Input is a @c.us phone — keep it canonical; contactPhone is an alternate
+        registerUserMapping(phone, contactPhone, 'phone');
       }
     }
-  } catch (_) {}
+  }
+
+  if (name) {
+    registerName(canonicalPhone, name);
+    registerAlias(name.toLowerCase(), canonicalPhone, 'name');
+  }
 }
 
 /**
@@ -153,8 +164,6 @@ async function cacheNames(phones, client) {
     if (getUserName(phone)) continue;
     try {
       const contact = await client.getContactById(`${phone}@c.us`);
-      const name    = contact.pushname || contact.name;
-      if (name) registerName(phone, name);
       await discoverAndRegisterMappings(phone, contact);
     } catch (_) {}
   }

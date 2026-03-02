@@ -160,6 +160,102 @@ const stmts = {
   deleteGroupBal: db.prepare(`DELETE FROM balances WHERE group_id = ?`),
 };
 
+// ── One-time migration: merge LID-keyed rows into canonical-phone rows ─────────
+//
+// When a @lid number was stored as a balance/transaction key before its mapping
+// to the canonical phone was registered, we end up with duplicate entries.
+// This migration finds those rows, merges amounts into the canonical row, and
+// deletes the old LID row.  Safe to run on every startup (idempotent).
+
+(function migrateNormalizeLidKeys() {
+  const allAliasRows = stmts.allAliases.all();
+  // Build a quick alias→canonical lookup from the just-loaded alias table.
+  // We only care about aliases that differ from their canonical (i.e., LIDs /
+  // alternate phones — not the self-alias every canonical has).
+  const aliasToCanonical = new Map();
+  for (const { alias, canonical } of allAliasRows) {
+    if (alias !== canonical) aliasToCanonical.set(alias, canonical);
+  }
+  if (aliasToCanonical.size === 0) return;
+
+  // Helper: normalize a phone key; returns null if already canonical.
+  function norm(phone) {
+    return aliasToCanonical.get(phone) || null;
+  }
+
+  db.transaction(() => {
+    // ── balances ──────────────────────────────────────────────────────────────
+    const balRows = db.prepare('SELECT group_id, debtor, creditor, amount FROM balances').all();
+    for (const r of balRows) {
+      const nd = norm(r.debtor);
+      const nc = norm(r.creditor);
+      if (!nd && !nc) continue; // already canonical
+      const newDebtor   = nd || r.debtor;
+      const newCreditor = nc || r.creditor;
+      if (newDebtor === newCreditor) {
+        // Self-loops created by normalization must be removed
+        db.prepare('DELETE FROM balances WHERE group_id=? AND debtor=? AND creditor=?')
+          .run(r.group_id, r.debtor, r.creditor);
+        continue;
+      }
+      db.prepare(`
+        INSERT INTO balances(group_id, debtor, creditor, amount) VALUES(?, ?, ?, ?)
+        ON CONFLICT(group_id, debtor, creditor) DO UPDATE SET amount = amount + excluded.amount
+      `).run(r.group_id, newDebtor, newCreditor, r.amount);
+      db.prepare('DELETE FROM balances WHERE group_id=? AND debtor=? AND creditor=?')
+        .run(r.group_id, r.debtor, r.creditor);
+    }
+
+    // ── contributions ─────────────────────────────────────────────────────────
+    for (const r of db.prepare('SELECT tx_id, phone, amount FROM contributions').all()) {
+      const np = norm(r.phone);
+      if (!np) continue;
+      db.prepare(`
+        INSERT INTO contributions(tx_id, phone, amount) VALUES(?, ?, ?)
+        ON CONFLICT(tx_id, phone) DO UPDATE SET amount = amount + excluded.amount
+      `).run(r.tx_id, np, r.amount);
+      db.prepare('DELETE FROM contributions WHERE tx_id=? AND phone=?').run(r.tx_id, r.phone);
+    }
+
+    // ── liabilities ───────────────────────────────────────────────────────────
+    for (const r of db.prepare('SELECT tx_id, phone, amount FROM liabilities').all()) {
+      const np = norm(r.phone);
+      if (!np) continue;
+      db.prepare(`
+        INSERT INTO liabilities(tx_id, phone, amount) VALUES(?, ?, ?)
+        ON CONFLICT(tx_id, phone) DO UPDATE SET amount = amount + excluded.amount
+      `).run(r.tx_id, np, r.amount);
+      db.prepare('DELETE FROM liabilities WHERE tx_id=? AND phone=?').run(r.tx_id, r.phone);
+    }
+
+    // ── tx_participants ───────────────────────────────────────────────────────
+    for (const r of db.prepare('SELECT tx_id, phone FROM tx_participants').all()) {
+      const np = norm(r.phone);
+      if (!np) continue;
+      db.prepare('INSERT OR IGNORE INTO tx_participants(tx_id, phone) VALUES(?, ?)').run(r.tx_id, np);
+      db.prepare('DELETE FROM tx_participants WHERE tx_id=? AND phone=?').run(r.tx_id, r.phone);
+    }
+
+    // ── balance_deltas ────────────────────────────────────────────────────────
+    for (const r of db.prepare('SELECT id, debtor, creditor FROM balance_deltas').all()) {
+      const nd = norm(r.debtor);
+      const nc = norm(r.creditor);
+      if (!nd && !nc) continue;
+      db.prepare('UPDATE balance_deltas SET debtor=?, creditor=? WHERE id=?')
+        .run(nd || r.debtor, nc || r.creditor, r.id);
+    }
+
+    // ── settlements ───────────────────────────────────────────────────────────
+    for (const r of db.prepare('SELECT tx_id, from_phone, to_phone FROM settlements').all()) {
+      const nf = norm(r.from_phone);
+      const nt = norm(r.to_phone);
+      if (!nf && !nt) continue;
+      db.prepare('UPDATE settlements SET from_phone=?, to_phone=? WHERE tx_id=?')
+        .run(nf || r.from_phone, nt || r.to_phone, r.tx_id);
+    }
+  })();
+}());
+
 // ── Public API — Users ─────────────────────────────────────────────────────────
 
 /** Upsert a display name for a phone number. */
