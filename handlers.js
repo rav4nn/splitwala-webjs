@@ -208,7 +208,7 @@ async function extractPayer(text, msg, client, chat) {
   // Case insensitive, works anywhere in string
   // Improved regex: matches "paid by X" or "by X" where X can be multiple words
   // Use non-greedy capture to stop at next keyword or end
-  const payerRegex = /\b(?:paid[ \t]+)?by[ \t]+([^\n]+?)(?=[ \t]+(?:between|for|by|owes|@all)|$|\n)/gi;
+  const payerRegex = /\b(?:paid[ \t]+)?by[ \t]+(@\w+|[^@,\n]+?)(?=,|[ \t]+@|[ \t]+(?:between|for|by|owes|@all)|$|\n)/gi;
   
   const matches = [];
   let match;
