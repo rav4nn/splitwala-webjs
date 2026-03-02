@@ -95,11 +95,14 @@ async function resolveIdentity(text, msg, client, chat) {
     return { phone: canonicalPhone, fullId: `${canonicalPhone}@c.us` };
   }
 
-  // Match by phone number embedded in text (e.g. typed phone, not @-mention)
+  // Match by phone number embedded in text (e.g. typed phone, not @-mention).
+  // Also try with spaces stripped — handles "@+91 73892 76189" where cleanText
+  // becomes "91 73892 76189" but the stored phone is "917389276189".
+  const cleanTextCompact = cleanText.replace(/\s/g, '');
   for (const fullId of (msg.mentionedIds || [])) {
     if (botId && fullId === botId) continue;
     const phone = stripSuffix(fullId);
-    if (cleanText.includes(phone)) return { phone, fullId };
+    if (cleanText.includes(phone) || cleanTextCompact.includes(phone)) return { phone, fullId };
   }
 
   // Match by participant display name — skip the bot
@@ -209,7 +212,10 @@ async function extractPayer(text, msg, client, chat) {
   // Case insensitive, works anywhere in string
   // Improved regex: matches "paid by X" or "by X" where X can be multiple words
   // Use non-greedy capture to stop at next keyword or end
-  const payerRegex = /\b(?:paid[ \t]+)?by[ \t]+(@\w+|[^@,\n]+?)(?=,|[ \t]+@|[ \t]+(?:between|for|by|owes|@all)|$|\n)/gi;
+  // First alternative: @mention payer — @[^@,\n]+ captures "@~Mohit Chandak",
+  // "@Mohit", or any @-prefixed text until the next @, comma, or newline.
+  // Second alternative: plain name payer (non-greedy, existing behaviour).
+  const payerRegex = /\b(?:paid[ \t]+)?by[ \t]+(@[^@,\n]+|[^@,\n]+?)(?=,|[ \t]+@|[ \t]+(?:between|for|by|owes|@all)|$|\n)/gi;
   
   const matches = [];
   let match;
@@ -736,7 +742,7 @@ async function parseSharesSplit(text, msg, client, chat, payerFullId = null) {
   
   // Validate we have at least one participant
   if (Object.keys(participants).length === 0 && !hasError) {
-    errors.push('❌ Could not resolve participants with shares.');
+    errors.push('❌ Put share participants in new lines.');
     hasError = true;
   }
   

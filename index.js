@@ -103,15 +103,15 @@ const ROUTES = [
 ];
 
 const USAGE =
-  'Unknown command. Available commands:\n' +
-  '  /split <amount> [by me/by @Person <amount>] [@Person owes <amount>] [for description]\n' +
-  '  /balances  |  /balances @Person\n' +
-  '  /paid <amount> to @user  |  /got <amount> from @user\n' +
-  '  /help - Show this help message\n' +
-  '  /summary - Show simplified group balances\n' +
-  '  /history [count] [@Person]\n' +
-  '  /delete [id|last]  |  /delete [id] confirm\n' +
-  '  /resetall  |  /resetall confirm';
+  'Unknown command. Try:\n' +
+  '  💸 /split <amount>\n' +
+  '  📊 /balances\n' +
+  '  📊 /summary\n' +
+  '  ✅ /paid <amt> to @Person\n' +
+  '  ✅ /got <amt> from @Person\n' +
+  '  🕓 /history\n' +
+  '  🗑 /delete\n' +
+  '  ⚠ /resetall';
 
 client.on('message', async msg => {
   if (msg.isStatus) return;
