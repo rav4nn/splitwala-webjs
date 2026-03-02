@@ -414,7 +414,8 @@ function getGroupPhones(chat, client) {
   if (!chat.isGroup || !Array.isArray(chat.participants)) return [];
   const botId = client.info?.wid?._serialized;
   return chat.participants
-    .filter(p => p?.id?._serialized && p.id._serialized !== botId)
+    .filter(p => p?.id?._serialized && p.id._serialized !== botId
+                 && p.id._serialized.endsWith('@c.us'))
     .map(p => stripSuffix(p.id._serialized));
 }
 
@@ -425,46 +426,66 @@ function getGroupPhones(chat, client) {
  * - Includes sender (if not already in participants)
  * - Ensures no duplicates
  * - Requires group chat with at least 2 participants (excluding bot)
+ * - Throws if any participant's identity could not be resolved (unresolved @lid)
  */
 async function getAllParticipants(chat, client, senderFullId, senderId) {
   if (!chat.isGroup) {
     throw new Error('❌ @all can only be used in group chats.');
   }
-  
+
   if (!Array.isArray(chat.participants)) {
     throw new Error('❌ Could not fetch group participants.');
   }
-  
+
   const botId = client.info?.wid?._serialized;
   const participants = [];
   const seenPhones = new Set();
-  
+  let hasUnresolvedLid = false;
+
   // Add all group participants except bot
   for (const p of chat.participants) {
     if (!p?.id?._serialized) continue;
     if (botId && p.id._serialized === botId) continue;
-    
-    const phone = stripSuffix(p.id._serialized);
-    const canonicalPhone = normalizeUserId(phone);
-    
+
+    const rawPhone = stripSuffix(p.id._serialized);
+    const canonicalPhone = normalizeUserId(rawPhone);
+
+    if (p.id._serialized.endsWith('@lid') && canonicalPhone === rawPhone) {
+      // Unresolved @lid — cannot safely include this person
+      hasUnresolvedLid = true;
+      continue;
+    }
+
     if (!seenPhones.has(canonicalPhone)) {
       seenPhones.add(canonicalPhone);
-      participants.push({ phone: canonicalPhone, fullId: p.id._serialized });
+      // For resolved @lid entries, construct a valid @c.us JID for mentions
+      const fullId = p.id._serialized.endsWith('@lid')
+        ? `${canonicalPhone}@c.us`
+        : p.id._serialized;
+      participants.push({ phone: canonicalPhone, fullId });
     }
   }
-  
+
+  if (hasUnresolvedLid) {
+    throw new Error(
+      "❌ Couldn't identify all group members (some appear as device IDs the bot can't resolve).\n" +
+      "Please tag participants individually instead:\n" +
+      "  /split <amount> @Person1 @Person2 ..."
+    );
+  }
+
   // Ensure sender is included
   const senderCanonical = normalizeUserId(senderId);
   if (!seenPhones.has(senderCanonical)) {
     seenPhones.add(senderCanonical);
     participants.push({ phone: senderCanonical, fullId: senderFullId });
   }
-  
+
   // Validate group size (excluding bot)
   if (participants.length < 2) {
     throw new Error('❌ Group must have at least 2 participants (excluding bot) to use @all.');
   }
-  
+
   return participants;
 }
 
@@ -715,7 +736,7 @@ async function parseSharesSplit(text, msg, client, chat, payerFullId = null) {
   
   // Validate we have at least one participant
   if (Object.keys(participants).length === 0 && !hasError) {
-    errors.push('❌ No valid participants found with shares.');
+    errors.push('❌ Could not resolve participants with shares.');
     hasError = true;
   }
   
@@ -1198,40 +1219,6 @@ async function handleSharesSplit(msg, client, chat, senderId, senderFullId, part
 }
 
 
-// ─── /split debug helpers ─────────────────────────────────────────────────────
-
-/**
- * Classify a raw WhatsApp JID.
- * Returns 'jid' for phone-based (@c.us + digit prefix), 'lid' for @lid, or 'unknown'.
- */
-function classifyId(id) {
-  if (!id) return 'unknown';
-  if (id.endsWith('@lid')) return 'lid';
-  if (id.endsWith('@c.us') && /^\d+@/.test(id)) return 'jid';
-  return 'unknown';
-}
-
-/**
- * Attempt to resolve a raw JID to a canonical phone and display name.
- * Never throws — falls back to the raw stripped ID on failure.
- */
-async function debugIdentity(client, id) {
-  let resolved = stripSuffix(id);
-  let name = null;
-  try {
-    const contact = await client.getContactById(id);
-    if (contact) {
-      name = contact.pushname || contact.name || null;
-      if (contact.number) {
-        resolved = contact.number;
-      } else if (contact.id?._serialized?.endsWith('@c.us')) {
-        resolved = stripSuffix(contact.id._serialized);
-      }
-    }
-  } catch (_) {}
-  return { resolved, name };
-}
-
 // ─── /split ───────────────────────────────────────────────────────────────────
 
 async function handleSplit(msg, client) {
@@ -1252,28 +1239,6 @@ async function handleSplit(msg, client) {
   for (const fullId of (msg.mentionedIds || [])) {
     const phone = stripSuffix(fullId);
     if (!participantMap[phone]) participantMap[phone] = fullId;
-  }
-
-  // DEBUG: warn in chat for any LID/unknown JID among the mentioned IDs.
-  // Fire-and-forget so /split is never blocked.
-  {
-    const warnedIds = new Set();
-    for (const fullId of (msg.mentionedIds || [])) {
-      const type = classifyId(fullId);
-      if (type !== 'jid' && !warnedIds.has(fullId)) {
-        warnedIds.add(fullId);
-        debugIdentity(client, fullId).then(({ resolved, name }) => {
-          const warning = [
-            '⚠️ Identity Warning:',
-            `Raw ID: ${fullId}`,
-            `Type: ${type === 'lid' ? 'LID' : 'Unknown'}`,
-            `Resolved to: ${resolved}`,
-            `Name (if available): ${name || 'unknown'}`,
-          ].join('\n');
-          client.sendMessage(chatId, warning).catch(() => {});
-        }).catch(() => {});
-      }
-    }
   }
 
   // STEP 1: Remove label from text BEFORE parsing payer/participants
