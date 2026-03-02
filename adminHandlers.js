@@ -5,10 +5,10 @@
 const {
   stripSuffix,
   getName,
-  registerName,
   formatCurrency,
   getMentionedPhones,
   cacheNames,
+  getCachedDisplayNames,
   getSimplifiedBalances,
   getParticipants,
   normalizeUserId,
@@ -108,49 +108,6 @@ async function getDisplayName(client, userId) {
   }
 }
 
-/**
- * Get cached display names for multiple users.
- * Normalizes phones through the alias system first (resolves LIDs to real phones),
- * persists any found name to SQLite, and falls back to the name cache as last resort.
- * Returns Map<userId, displayName>
- */
-async function getCachedDisplayNames(client, userIds) {
-  const nameCache = new Map();
-  const uniqueIds = [...new Set(userIds.filter(Boolean))];
-
-  const namePromises = uniqueIds.map(async (userId) => {
-    const phone = userId.split("@")[0];
-    const canonicalPhone = normalizeUserId(phone);
-
-    // Try JIDs in order: canonical @c.us (if alias resolved), then phone @c.us,
-    // then phone @lid (handles LID phones stored in old transactions with no alias yet)
-    const jidsToTry = [
-      ...(canonicalPhone !== phone ? [`${canonicalPhone}@c.us`] : []),
-      `${phone}@c.us`,
-      `${phone}@lid`,
-    ];
-
-    for (const jid of jidsToTry) {
-      try {
-        const contact = await client.getContactById(jid);
-        const name = contact.pushname || contact.name;
-        if (name) {
-          registerName(canonicalPhone, name);  // persist to SQLite
-          nameCache.set(userId, name);
-          return { userId, name };
-        }
-      } catch (_) {}
-    }
-
-    // Fall back to SQLite cache (getName normalizes via alias system internally)
-    const name = getName(phone);
-    nameCache.set(userId, name);
-    return { userId, name };
-  });
-
-  await Promise.all(namePromises);
-  return nameCache;
-}
 
 /**
  * Format transaction for clean display (no mentions, no IDs)

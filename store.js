@@ -160,6 +160,43 @@ async function cacheNames(phones, client) {
   }
 }
 
+/**
+ * Get display names for multiple user IDs, trying @c.us then @lid JIDs.
+ * Persists any found name to SQLite. Falls back to getName() cache.
+ * Returns Map<userId, displayName>
+ */
+async function getCachedDisplayNames(client, userIds) {
+  const nameCache = new Map();
+  const uniqueIds = [...new Set(userIds.filter(Boolean))];
+
+  await Promise.all(uniqueIds.map(async (userId) => {
+    const phone = userId.split('@')[0];
+    const canonicalPhone = normalizeUserId(phone);
+
+    const jidsToTry = [
+      ...(canonicalPhone !== phone ? [`${canonicalPhone}@c.us`] : []),
+      `${phone}@c.us`,
+      `${phone}@lid`,
+    ];
+
+    for (const jid of jidsToTry) {
+      try {
+        const contact = await client.getContactById(jid);
+        const name = contact.pushname || contact.name;
+        if (name) {
+          registerName(canonicalPhone, name);
+          nameCache.set(userId, name);
+          return;
+        }
+      } catch (_) {}
+    }
+
+    nameCache.set(userId, getName(phone));
+  }));
+
+  return nameCache;
+}
+
 // ── Balance helpers ────────────────────────────────────────────────────────────
 
 /**
@@ -438,7 +475,7 @@ module.exports = {
   stripSuffix, getMentionedPhones, formatCurrency, generateId,
 
   // Name cache
-  registerName, getName, cacheNames,
+  registerName, getName, cacheNames, getCachedDisplayNames,
 
   // Alias / ID mapping
   registerUserMapping, findCanonicalPhone, getUserIds,

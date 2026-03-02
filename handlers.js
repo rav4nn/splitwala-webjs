@@ -11,6 +11,7 @@ const {
   addTransaction,
   getMentionedPhones,
   cacheNames,
+  getCachedDisplayNames,
   getNetBetween,
   getOverallNet,
   getParticipants,
@@ -1817,6 +1818,11 @@ async function handleSummary(msg, client) {
   // Build summary lines with @mentions; fall back to getName() if JID not found.
   // Normalize tx.from/tx.to so historical LID phones resolve to the canonical phone
   // (which IS in participantMap) rather than looking up the raw LID phone (which isn't).
+  // Pre-resolve names for phones not reachable via @c.us participantMap
+  // (covers @lid-only users who never messaged the bot)
+  const allPhones = [...new Set(simplified.flatMap(tx => [normalizeUserId(tx.from), normalizeUserId(tx.to)]))];
+  const nameCache = await getCachedDisplayNames(client, allPhones.map(p => `${p}@c.us`));
+
   const lines = [];
   const mentions = [];
 
@@ -1827,8 +1833,8 @@ async function handleSummary(msg, client) {
     const toFullId   = participantMap[tx.to]   || participantMap[toPhone];
 
     // Use canonical phone in @mention text so it matches the fullId JID's phone number
-    const fromText = fromFullId ? `@${fromPhone}` : getName(tx.from);
-    const toText   = toFullId   ? `@${toPhone}`   : getName(tx.to);
+    const fromText = fromFullId ? `@${fromPhone}` : (nameCache.get(`${fromPhone}@c.us`) || getName(tx.from));
+    const toText   = toFullId   ? `@${toPhone}`   : (nameCache.get(`${toPhone}@c.us`)   || getName(tx.to));
 
     lines.push(`${fromText} owes ${toText} ${formatCurrency(tx.amount)}`);
 
