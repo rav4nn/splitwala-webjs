@@ -24,7 +24,12 @@ const { handleResetAll, handleHistory, handleDelete }    = require('./adminHandl
 // ─── WhatsApp client ──────────────────────────────────────────────────────────
 
 // LocalAuth persists the session in .wwebjs_auth/ so the QR scan is only needed once.
-const client = new Client({ authStrategy: new LocalAuth() });
+const client = new Client({
+  authStrategy: new LocalAuth(),
+  puppeteer: {
+    args: ['--no-sandbox', '--disable-setuid-sandbox']
+  }
+});
 
 client.on('qr', qr => {
   console.log('\nScan this QR code with WhatsApp to log in:\n');
