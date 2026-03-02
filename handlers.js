@@ -208,7 +208,7 @@ async function extractPayer(text, msg, client, chat) {
   // Case insensitive, works anywhere in string
   // Improved regex: matches "paid by X" or "by X" where X can be multiple words
   // Use non-greedy capture to stop at next keyword or end
-  const payerRegex = /\b(?:paid[ \t]+)?by[ \t]+([^\n]+?)(?=[ \t]+(?:between|for|by|owes)|$|\n)/gi;
+  const payerRegex = /\b(?:paid[ \t]+)?by[ \t]+([^\n]+?)(?=[ \t]+(?:between|for|by|owes|@all)|$|\n)/gi;
   
   const matches = [];
   let match;
@@ -272,20 +272,25 @@ async function extractPayer(text, msg, client, chat) {
  * Extract participants from text
  * Returns { participants: Array<{ phone, fullId }>, error: string | null }
  */
-async function extractParticipants(text, msg, client, chat) {
+async function extractParticipants(text, msg, client, chat, payerFullId = null) {
   const senderFullId = await resolveSenderJid(msg, chat, client);
   const senderId = stripSuffix(senderFullId);
   const botId = client.info?.wid?._serialized;
-  
+
   // Check for @all keyword
   const hasAll = text.includes('@all');
-  
+
   if (hasAll) {
     // @all keyword detected
-    // Validate: cannot mix @all with mentions
+    // Validate: cannot mix @all with individual mentions (excluding the payer, who is already handled)
     const mentionedIds = msg.mentionedIds || [];
-    const hasMentions = mentionedIds.some(id => botId && id !== botId);
-    
+    const payerPhone = payerFullId ? stripSuffix(payerFullId) : null;
+    const hasMentions = mentionedIds.some(id => {
+      if (botId && id === botId) return false;
+      if (payerPhone && stripSuffix(id) === payerPhone) return false;
+      return true;
+    });
+
     if (hasMentions) {
       return {
         participants: [],
@@ -573,25 +578,30 @@ function removeLabelFromText(text) {
  * Parse shares-based split from multi-line text
  * Returns { participants: { phone: shares }, error: string } or null if not shares mode
  */
-async function parseSharesSplit(text, msg, client, chat) {
+async function parseSharesSplit(text, msg, client, chat, payerFullId = null) {
   const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
-  
+
   // Check if any line contains "share" or "shares" (case-insensitive)
   const hasSharesKeyword = lines.some(line => /\bshares?\b/i.test(line));
   if (!hasSharesKeyword) {
     return null; // Not shares mode
   }
-  
+
   // Check for @all keyword in any line
   const hasAll = lines.some(line => line.includes('@all'));
-  
+
   if (hasAll) {
     // @all keyword detected in shares mode
-    // Validate: cannot mix @all with mentions
+    // Validate: cannot mix @all with individual mentions (excluding the payer)
     const mentionedIds = msg.mentionedIds || [];
     const botId = client.info?.wid?._serialized;
-    const hasMentions = mentionedIds.some(id => botId && id !== botId);
-    
+    const payerPhone = payerFullId ? stripSuffix(payerFullId) : null;
+    const hasMentions = mentionedIds.some(id => {
+      if (botId && id === botId) return false;
+      if (payerPhone && stripSuffix(id) === payerPhone) return false;
+      return true;
+    });
+
     if (hasMentions) {
       return { error: '❌ Cannot combine @all with individual mentions.' };
     }
@@ -707,30 +717,35 @@ async function parseSharesSplit(text, msg, client, chat) {
  * Parse percentage-based split from multi-line text
  * Returns { participants: { phone: percentage }, unspecified: Set<phone>, error: string } or null if not percentage mode
  */
-async function parsePercentageSplit(text, msg, client, chat) {
+async function parsePercentageSplit(text, msg, client, chat, payerFullId = null) {
   const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
-  
+
   // Check if any line contains "%" (percentage mode)
   const hasPercentage = lines.some(line => /%/.test(line));
   if (!hasPercentage) {
     return null; // Not percentage mode
   }
-  
+
   // Check for mixing modes (shares + percentages)
   const hasShares = lines.some(line => /\bshares?\b/i.test(line));
   if (hasShares) {
     return { error: '❌ Cannot mix shares and percentages in the same split.' };
   }
-  
+
   // Check for @all keyword in any line
   const hasAll = lines.some(line => line.includes('@all'));
-  
+
   if (hasAll) {
     // @all keyword detected in percentage mode
-    // Validate: cannot mix @all with mentions
+    // Validate: cannot mix @all with individual mentions (excluding the payer)
     const mentionedIds = msg.mentionedIds || [];
     const botId = client.info?.wid?._serialized;
-    const hasMentions = mentionedIds.some(id => botId && id !== botId);
+    const payerPhone = payerFullId ? stripSuffix(payerFullId) : null;
+    const hasMentions = mentionedIds.some(id => {
+      if (botId && id === botId) return false;
+      if (payerPhone && stripSuffix(id) === payerPhone) return false;
+      return true;
+    });
     
     if (hasMentions) {
       return { error: '❌ Cannot combine @all with individual mentions.' };
@@ -1237,7 +1252,7 @@ async function handleSplit(msg, client) {
   const totalAmount = parseFloat(amountMatch[1]);
 
   // Check for shares mode (using cleaned text)
-  const sharesResult = await parseSharesSplit(cleanedText, msg, client, chat);
+  const sharesResult = await parseSharesSplit(cleanedText, msg, client, chat, specifiedPayer?.fullId);
   if (sharesResult) {
     if (sharesResult.error) {
       await client.sendMessage(chatId, sharesResult.error);
@@ -1250,7 +1265,7 @@ async function handleSplit(msg, client) {
   }
 
   // Check for percentage mode (using cleaned text)
-  const percentageResult = await parsePercentageSplit(cleanedText, msg, client, chat);
+  const percentageResult = await parsePercentageSplit(cleanedText, msg, client, chat, specifiedPayer?.fullId);
   if (percentageResult) {
     if (percentageResult.error) {
       await client.sendMessage(chatId, percentageResult.error);
@@ -1264,7 +1279,7 @@ async function handleSplit(msg, client) {
 
   // Continue with regular split logic (equal split or custom liabilities)
   // Extract participants using the new standardized system
-  const participantsResult = await extractParticipants(cleanedText, msg, client, chat);
+  const participantsResult = await extractParticipants(cleanedText, msg, client, chat, specifiedPayer?.fullId);
   if (participantsResult.error) {
     await client.sendMessage(chatId, participantsResult.error);
     return;
