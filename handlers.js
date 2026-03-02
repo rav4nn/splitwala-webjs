@@ -587,6 +587,18 @@ async function parseSharesSplit(text, msg, client, chat, payerFullId = null) {
     return null; // Not shares mode
   }
 
+  // Check for mixing modes (shares + owes amounts)
+  const hasOwes = lines.some(line => /\bowes\b/i.test(line));
+  if (hasOwes) {
+    return { error: '❌ Cannot mix owes amounts and shares in the same split. Please use only one type of split.' };
+  }
+
+  // Check for mixing modes (shares + percentages)
+  const hasPercentage = lines.some(line => /%/.test(line));
+  if (hasPercentage) {
+    return { error: '❌ Cannot mix shares and percentages in the same split. Please use only one type of split.' };
+  }
+
   // Check for @all keyword in any line
   const hasAll = lines.some(line => line.includes('@all'));
 
@@ -724,6 +736,12 @@ async function parsePercentageSplit(text, msg, client, chat, payerFullId = null)
   const hasPercentage = lines.some(line => /%/.test(line));
   if (!hasPercentage) {
     return null; // Not percentage mode
+  }
+
+  // Check for mixing modes (percentages + owes amounts)
+  const hasOwes = lines.some(line => /\bowes\b/i.test(line));
+  if (hasOwes) {
+    return { error: '❌ Cannot mix owes amounts and percentages in the same split. Please use only one type of split.' };
   }
 
   // Check for mixing modes (shares + percentages)
@@ -1325,6 +1343,22 @@ async function handleSplit(msg, client) {
     contributions[payerCanonical] = (contributions[payerCanonical] || 0) + (totalAmount - totalPaid);
   }
 
+  // Validate that owes amounts add up to total split amount (if liabilities are specified)
+  if (Object.keys(liabilities).length > 0) {
+    const totalLiabilities = Object.values(liabilities).reduce((sum, amount) => sum + amount, 0);
+    const difference = Math.abs(totalLiabilities - totalAmount);
+    
+    // Allow small rounding differences (0.01)
+    if (difference > 0.01) {
+      await client.sendMessage(chatId,
+        `❌ The owes amounts (${formatCurrency(totalLiabilities)}) don't add up to the split amount (${formatCurrency(totalAmount)}). ` +
+        `Difference: ${formatCurrency(difference)}\n\n` +
+        'Please check your amounts. Example:\n' +
+        '/split 600 @Mohit owes 200 @Kritika owes 400');
+      return;
+    }
+  }
+
   // Default to equal split among all involved parties when no liabilities given
   if (Object.keys(liabilities).length === 0) {
     // Use the participants extracted by extractParticipants()
@@ -1337,7 +1371,7 @@ async function handleSplit(msg, client) {
         '- /split 500 between me and @user1');
       return;
     }
-    
+
     const perShare = Math.round((totalAmount / participantsList.length) * 100) / 100;
     for (const { phone } of participantsList) {
       liabilities[phone] = perShare;
