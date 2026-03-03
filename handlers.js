@@ -592,9 +592,17 @@ function removeLabelFromText(text) {
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i];
     if (line.toLowerCase().startsWith("for ")) {
-      // For new line label, we don't need to remove anything from the first line
-      // The label is on a separate line, so it won't interfere with parsing
-      return { textWithoutLabel: lines[0], label: line.slice(4).trim(), error: null };
+      const label = line.slice(4).trim();
+      if (!label) {
+        return { textWithoutLabel: text, label: null, error: '❌ Invalid label. Use: for <description>' };
+      }
+      if (label.length > 40) {
+        return { textWithoutLabel: text, label: null, error: '❌ Label too long. Max 40 characters allowed.' };
+      }
+      // Return ALL lines except the label line so that multiline participant
+      // data (e.g. "Me 50%\n@Mohit" above the label) is preserved for parsing.
+      const textWithoutLabel = lines.filter((_, idx) => idx !== i).join('\n');
+      return { textWithoutLabel, label, error: null };
     }
   }
   
