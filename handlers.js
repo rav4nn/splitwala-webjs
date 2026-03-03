@@ -895,7 +895,7 @@ async function parsePercentageSplit(text, msg, client, chat, payerFullId = null)
     // Parse percentage line: user percentage
     // Patterns: "@user 50%", "me 25%", "@user" (no percentage)
     const percentageMatch = line.match(/^(.+?)\s+([\d.]+)%$/i);
-    const userOnlyMatch = line.match(/^([^%\d]+)$/i); // User without percentage
+    const userOnlyMatch = line.match(/^([^%]+)$/i); // User without percentage
     
     let userText = '';
     let percentage = null;
