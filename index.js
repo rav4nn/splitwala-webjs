@@ -115,12 +115,25 @@ const DM_REPLY =
   `👉 Send something like: \n"/split 600 @all for dinner"\n\n` +
   `And I'll handle the rest 😎`;
 
-client.on('message', async msg => {
-  if (msg.isStatus) return;
+const DM_FOLLOWUP =
+  `😄 I only work inside groups!\n\n` +
+  `Add me to a WhatsApp group with your friends and I'll handle all the splitting for you 🪄\n\n` +
+  `No apps, no signups — just magic ✨`;
 
-  // Reply to DMs with an onboarding message — bot only works in groups
+// Tracks DM senders who've already received the intro so we don't spam them
+const dmGreetedUsers = new Set();
+
+client.on('message', async msg => {
+  if (msg.isStatus || msg.fromMe) return;
+
+  // Reply to DMs — bot only works in groups
   if (!msg.from.endsWith('@g.us')) {
-    await client.sendMessage(msg.from, DM_REPLY);
+    if (dmGreetedUsers.has(msg.from)) {
+      await client.sendMessage(msg.from, DM_FOLLOWUP);
+    } else {
+      dmGreetedUsers.add(msg.from);
+      await client.sendMessage(msg.from, DM_REPLY);
+    }
     return;
   }
 
