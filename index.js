@@ -107,8 +107,22 @@ const USAGE =
   '✅ Use one of the supported slash commands.\n' +
   '📝 Example: /help';
 
+const DM_REPLY =
+  `👋 Hey! I'm Splitwala\n\n` +
+  `I help you split expenses automatically in WhatsApp groups 💸\n` +
+  `No app installs required 🙌\n\n` +
+  `👉 Add me to a group with your friends\n` +
+  `👉 Send something like: \n"/split 600 @all for dinner"\n\n` +
+  `And I'll handle the rest 😎`;
+
 client.on('message', async msg => {
   if (msg.isStatus) return;
+
+  // Reply to DMs with an onboarding message — bot only works in groups
+  if (!msg.from.endsWith('@g.us')) {
+    await client.sendMessage(msg.from, DM_REPLY);
+    return;
+  }
 
   const text  = msg.body.trim();
   if (!text.startsWith('/')) return;
@@ -117,9 +131,7 @@ client.on('message', async msg => {
   const route = ROUTES.find(([prefix]) => lower.startsWith(prefix));
 
   // Eagerly cache all group member names on first command per session
-  if (msg.from.endsWith('@g.us')) {
-    await ensureGroupCached(msg, client);
-  }
+  await ensureGroupCached(msg, client);
 
   try {
     if (route) {
