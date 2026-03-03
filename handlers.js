@@ -27,6 +27,21 @@ const {
 
 // ─── Shared helpers ───────────────────────────────────────────────────────────
 
+function formatInputError(problem, fix, example) {
+  return `❌ ${problem}\n✅ ${fix}\n📝 Example: ${example}`;
+}
+
+function toThreeLineError(rawProblem, fix, example) {
+  const normalized = String(rawProblem || 'Invalid input.')
+    .replace(/^\s*❌\s*/i, '')
+    .split('\n')
+    .map(line => line.replace(/^\s*[-•]\s*/, '').trim())
+    .filter(Boolean)
+    .join(' ');
+
+  return formatInputError(normalized, fix, example);
+}
+
 /**
  * Resolve a text token to { phone, fullId }.
  * Recognises "me/I/myself", @mention phone numbers, and participant names.
@@ -1109,7 +1124,14 @@ async function handleSharesSplit(msg, client, chat, senderId, senderFullId, part
   // Calculate total shares
   const totalShares = Object.values(sharesParticipants).reduce((sum, shares) => sum + shares, 0);
   if (totalShares === 0) {
-    await client.sendMessage(chatId, '❌ Total shares cannot be zero.');
+    await client.sendMessage(
+      chatId,
+      formatInputError(
+        'Total shares cannot be zero.',
+        'Assign at least 1 share to one participant.',
+        '/split 600\n@Rahul 2 shares\nme 1 share'
+      )
+    );
     return;
   }
   
@@ -1255,7 +1277,14 @@ async function handleSplit(msg, client) {
   // This prevents label text from interfering with parsing
   const labelRemovalResult = removeLabelFromText(text);
   if (labelRemovalResult.error) {
-    await client.sendMessage(chatId, labelRemovalResult.error);
+    await client.sendMessage(
+      chatId,
+      toThreeLineError(
+        labelRemovalResult.error,
+        'Keep label format as "for <description>" and keep it short.',
+        '/split 600 @all for dinner'
+      )
+    );
     return;
   }
   
@@ -1264,7 +1293,14 @@ async function handleSplit(msg, client) {
   // STEP 2: Extract payer from text WITHOUT label
   const payerResult = await extractPayer(textWithoutLabel, msg, client, chat);
   if (payerResult.error) {
-    await client.sendMessage(chatId, payerResult.error);
+    await client.sendMessage(
+      chatId,
+      toThreeLineError(
+        payerResult.error,
+        'Use exactly one payer after "by".',
+        '/split 600 by @Rahul between me and @Rahul'
+      )
+    );
     return;
   }
   
@@ -1272,31 +1308,14 @@ async function handleSplit(msg, client) {
   
   const amountMatch = cleanedText.match(/\/split\s+([\d.]+)/i);
   if (!amountMatch) {
-    await client.sendMessage(chatId,
-      'Usage: /split <amount> [@user1 @user2] [paid by @payer] [for <description>]\n\n' +
-      'Examples:\n' +
-      '- /split 600 @user1 @user2 (split between mentioned users)\n' +
-      '- /split 600 me @user1 (include yourself with "me")\n' +
-      '- /split 600 @user1 @user2 paid by @user1\n' +
-      '- /split 600 by @user2\n' +
-      '- /split 600 for dinner\n' +
-      '- /split 600 @user1 owes 400\n' +
-      '- /split 600 by @user1 200 by @user2 400\n' +
-      '- /split 500 @all (split equally among all group members)\n' +
-      '- /split 500 by @user @all (payer specified, split among all)\n' +
-      '- /split 500 by @user @all for dinner (with label)\n\n' +
-      'Shares mode (multi-line):\n' +
-      '/split 600\n' +
-      '@user1 2 shares\n' +
-      '@user2 1 share\n' +
-      'me 1 share\n' +
-      'paid by @user1\n\n' +
-      'Percentage mode (multi-line):\n' +
-      '/split 600\n' +
-      '@user1 50%\n' +
-      '@user2 25%\n' +
-      'me 25%\n' +
-      'paid by @user1');
+    await client.sendMessage(
+      chatId,
+      formatInputError(
+        'I could not find the split amount.',
+        'Start your command with /split followed by an amount.',
+        '/split 600 @all for dinner'
+      )
+    );
     return;
   }
   const totalAmount = parseFloat(amountMatch[1]);
@@ -1305,7 +1324,14 @@ async function handleSplit(msg, client) {
   const sharesResult = await parseSharesSplit(cleanedText, msg, client, chat, specifiedPayer?.fullId);
   if (sharesResult) {
     if (sharesResult.error) {
-      await client.sendMessage(chatId, sharesResult.error);
+      await client.sendMessage(
+        chatId,
+        toThreeLineError(
+          sharesResult.error,
+          'Use one split style at a time and place each participant on a new line.',
+          '/split 600\n@Rahul 2 shares\nme 1 share'
+        )
+      );
       return;
     }
     
@@ -1318,7 +1344,14 @@ async function handleSplit(msg, client) {
   const percentageResult = await parsePercentageSplit(cleanedText, msg, client, chat, specifiedPayer?.fullId);
   if (percentageResult) {
     if (percentageResult.error) {
-      await client.sendMessage(chatId, percentageResult.error);
+      await client.sendMessage(
+        chatId,
+        toThreeLineError(
+          percentageResult.error,
+          'Use one split style at a time and make percentages total 100.',
+          '/split 600\n@Rahul 60%\nme 40%'
+        )
+      );
       return;
     }
     
@@ -1331,7 +1364,14 @@ async function handleSplit(msg, client) {
   // Extract participants using the new standardized system
   const participantsResult = await extractParticipants(cleanedText, msg, client, chat, specifiedPayer?.fullId);
   if (participantsResult.error) {
-    await client.sendMessage(chatId, participantsResult.error);
+    await client.sendMessage(
+      chatId,
+      toThreeLineError(
+        participantsResult.error,
+        'Mention participants explicitly or use @all.',
+        '/split 500 between me and @Rahul'
+      )
+    );
     return;
   }
   
@@ -1382,11 +1422,14 @@ async function handleSplit(msg, client) {
     
     // Allow small rounding differences (0.01)
     if (difference > 0.01) {
-      await client.sendMessage(chatId,
-        `❌ The owes amounts (${formatCurrency(totalLiabilities)}) don't add up to the split amount (${formatCurrency(totalAmount)}). ` +
-        `Difference: ${formatCurrency(difference)}\n\n` +
-        'Please check your amounts. Example:\n' +
-        '/split 600 @Mohit owes 200 @Kritika owes 400');
+      await client.sendMessage(
+        chatId,
+        formatInputError(
+          `Owes amounts (${formatCurrency(totalLiabilities)}) do not match split amount (${formatCurrency(totalAmount)}).`,
+          `Adjust owes values so the difference (${formatCurrency(difference)}) becomes zero.`,
+          '/split 600 @Mohit owes 200 @Kritika owes 400'
+        )
+      );
       return;
     }
   }
@@ -1395,12 +1438,14 @@ async function handleSplit(msg, client) {
   if (Object.keys(liabilities).length === 0) {
     // Use the participants extracted by extractParticipants()
     if (participantsList.length === 0) {
-      await client.sendMessage(chatId,
-        '❌ Please mention users to split with.\n\n' +
-        'Examples:\n' +
-        '- /split 500 @user1 @user2\n' +
-        '- /split 500 me @user1\n' +
-        '- /split 500 between me and @user1');
+      await client.sendMessage(
+        chatId,
+        formatInputError(
+          'No participants were found for this split.',
+          'Mention users, include "me", or use "between ...".',
+          '/split 500 between me and @Rahul'
+        )
+      );
       return;
     }
 
@@ -1506,8 +1551,14 @@ async function handleBalances(msg, client) {
     const targetText = words.slice(1).join(' ');
     const target     = await resolveIdentity(targetText, msg, client, chat);
     if (!target) {
-      await client.sendMessage(chatId,
-        `❌ Couldn't find "${targetText}" in this group.\nUsage: /balances [@Person]`);
+      await client.sendMessage(
+        chatId,
+        formatInputError(
+          `I could not find "${targetText}" in this group.`,
+          'Tag the person using @mention.',
+          '/balances @Rahul'
+        )
+      );
       return;
     }
 
@@ -1713,13 +1764,14 @@ async function handleSettlement(msg, client, isPaidCommand) {
     : parseGotCommand(text);
   
   if (!parseResult) {
-    await client.sendMessage(chatId,
-      `❌ Couldn't understand that.\n\nUse:\n` +
-      `- /paid <amount> to @user\n` +
-      `- /got <amount> from @user\n\n` +
-      `Examples:\n` +
-      `- /paid 500 to @Mohit\n` +
-      `- /got 300 from @Vipul`);
+    await client.sendMessage(
+      chatId,
+      formatInputError(
+        'I could not understand that payment command.',
+        'Use /paid ... to ... or /got ... from ...',
+        isPaidCommand ? '/paid 500 to @Mohit' : '/got 300 from @Vipul'
+      )
+    );
     return;
   }
   
@@ -1727,14 +1779,28 @@ async function handleSettlement(msg, client, isPaidCommand) {
   
   // Validate amount
   if (isNaN(amount) || amount <= 0) {
-    await client.sendMessage(chatId, '❌ Amount must be a positive number.');
+    await client.sendMessage(
+      chatId,
+      formatInputError(
+        'Amount must be a positive number.',
+        'Enter only numbers greater than 0.',
+        isPaidCommand ? '/paid 500 to @Mohit' : '/got 300 from @Vipul'
+      )
+    );
     return;
   }
   
   // Resolve counterparty
   const counterparty = await resolveIdentity(counterpartyText, msg, client, chat);
   if (!counterparty) {
-    await client.sendMessage(chatId, `❌ Couldn't find "${counterpartyText}" in this group.`);
+    await client.sendMessage(
+      chatId,
+      formatInputError(
+        `I could not find "${counterpartyText}" in this group.`,
+        'Tag exactly one person with @mention.',
+        isPaidCommand ? '/paid 500 to @Mohit' : '/got 300 from @Vipul'
+      )
+    );
     return;
   }
   
@@ -1743,7 +1809,14 @@ async function handleSettlement(msg, client, isPaidCommand) {
   const counterpartyCanonical = normalizeUserId(counterparty.phone);
   
   if (senderCanonical === counterpartyCanonical) {
-    await client.sendMessage(chatId, '❌ Cannot record payment to yourself.');
+    await client.sendMessage(
+      chatId,
+      formatInputError(
+        'You cannot record a payment to yourself.',
+        'Choose another person in this group.',
+        isPaidCommand ? '/paid 500 to @Mohit' : '/got 300 from @Vipul'
+      )
+    );
     return;
   }
   
@@ -1753,7 +1826,14 @@ async function handleSettlement(msg, client, isPaidCommand) {
   const validMentions = mentionedPhones.filter(p => p !== botPhone && normalizeUserId(p) !== senderCanonical);
   
   if (validMentions.length > 1) {
-    await client.sendMessage(chatId, '❌ Please mention only one user.');
+    await client.sendMessage(
+      chatId,
+      formatInputError(
+        'Only one person can be used in /paid or /got.',
+        'Mention just one user in the command.',
+        isPaidCommand ? '/paid 500 to @Mohit' : '/got 300 from @Vipul'
+      )
+    );
     return;
   }
   
@@ -1783,7 +1863,14 @@ async function handleSettlement(msg, client, isPaidCommand) {
     }
   } catch (error) {
     console.error('Error recording settlement:', error);
-    await client.sendMessage(chatId, `❌ Error: ${error.message}`);
+    await client.sendMessage(
+      chatId,
+      toThreeLineError(
+        error.message || 'Could not record this payment.',
+        'Try again using a valid amount and one @mention.',
+        isPaidCommand ? '/paid 500 to @Mohit' : '/got 300 from @Vipul'
+      )
+    );
   }
 }
 

@@ -103,15 +103,9 @@ const ROUTES = [
 ];
 
 const USAGE =
-  'Unknown command. Try:\n' +
-  '  💸 /split <amount>\n' +
-  '  📊 /balances\n' +
-  '  📊 /summary\n' +
-  '  ✅ /paid <amt> to @Person\n' +
-  '  ✅ /got <amt> from @Person\n' +
-  '  🕓 /history\n' +
-  '  🗑 /delete\n' +
-  '  ⚠ /resetall';
+  '❌ I could not recognize that command.\n' +
+  '✅ Use one of the supported slash commands.\n' +
+  '📝 Example: /help';
 
 client.on('message', async msg => {
   if (msg.isStatus) return;
