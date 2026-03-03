@@ -227,10 +227,13 @@ async function extractPayer(text, msg, client, chat) {
   // Case insensitive, works anywhere in string
   // Improved regex: matches "paid by X" or "by X" where X can be multiple words
   // Use non-greedy capture to stop at next keyword or end
-  // First alternative: @mention payer — @[^@,\n]+ captures "@~Mohit Chandak",
-  // "@Mohit", or any @-prefixed text until the next @, comma, or newline.
+  // First alternative: @mention payer — @[^@,\n]+? (NON-GREEDY) so it stops at
+  // the first valid lookahead boundary (e.g. " between") instead of greedily
+  // consuming all the way to the next @ mention.  Without the ?, a command like
+  // "by @~Mohit Chandak between me and @~Vipul" would capture "@~Mohit Chandak
+  // between me and" as the payer text, stripping "between" from cleanedText.
   // Second alternative: plain name payer (non-greedy, existing behaviour).
-  const payerRegex = /\b(?:paid[ \t]+)?by[ \t]+(@[^@,\n]+|[^@,\n]+?)(?=,|[ \t]+@|[ \t]+(?:between|for|by|owes|@all)|$|\n)/gi;
+  const payerRegex = /\b(?:paid[ \t]+)?by[ \t]+(@[^@,\n]+?|[^@,\n]+?)(?=,|[ \t]+@|[ \t]+(?:between|for|by|owes|@all)|$|\n)/gi;
   
   const matches = [];
   let match;
@@ -602,16 +605,22 @@ function removeLabelFromText(text) {
   
   if (lastForIndex !== -1) {
     const label = tokens.slice(lastForIndex + 1).join(" ").trim();
-    
+
     // Validation
     if (!label) {
       return { textWithoutLabel: firstLine, label: null, error: '❌ Invalid label. Use: for <description>' };
     }
-    
+
+    // @mentions after "for" get swallowed into the label — reject and guide user
+    if (/@/.test(label)) {
+      return { textWithoutLabel: firstLine, label: null, mentionInLabel: true,
+        error: '❌ Can\'t tag people after "for" — @mentions must come before it.' };
+    }
+
     if (label.length > 40) {
       return { textWithoutLabel: firstLine, label: null, error: '❌ Label too long. Max 40 characters allowed.' };
     }
-    
+
     // Remove everything after "for" from the text
     const textWithoutLabel = tokens.slice(0, lastForIndex).join(" ").trim();
     return { textWithoutLabel, label, error: null };
@@ -1273,17 +1282,33 @@ async function handleSplit(msg, client) {
     if (!participantMap[phone]) participantMap[phone] = fullId;
   }
 
+  // Eagerly refresh alias mappings for every @-mentioned user BEFORE any parsing.
+  // This ensures resolveIdentity uses current canonical phones instead of stale
+  // name aliases left over from previous sessions (which cause duplicate DB keys).
+  const botId = client.info?.wid?._serialized;
+  for (const fullId of (msg.mentionedIds || [])) {
+    if (fullId === botId) continue;
+    const phone = stripSuffix(fullId);
+    if (!phone) continue;
+    try {
+      const contact = await client.getContactById(fullId);
+      await discoverAndRegisterMappings(phone, contact);
+    } catch (_) {}
+  }
+
   // STEP 1: Remove label from text BEFORE parsing payer/participants
   // This prevents label text from interfering with parsing
   const labelRemovalResult = removeLabelFromText(text);
   if (labelRemovalResult.error) {
+    const labelFix = labelRemovalResult.mentionInLabel
+      ? 'Put "for <label>" on a separate line at the end'
+      : 'Keep label format as "for <description>" and keep it short.';
+    const labelExample = labelRemovalResult.mentionInLabel
+      ? '/split 2100 between @Mohit and me\nfor devops'
+      : '/split 600 @all for dinner';
     await client.sendMessage(
       chatId,
-      toThreeLineError(
-        labelRemovalResult.error,
-        'Keep label format as "for <description>" and keep it short.',
-        '/split 600 @all for dinner'
-      )
+      toThreeLineError(labelRemovalResult.error, labelFix, labelExample)
     );
     return;
   }
@@ -1911,7 +1936,9 @@ for dinner 🍽️
 ━━ 🧠 Smart Splits ━━
 
 💰 Unequal amounts:
-/split 600 @friend1 owes 200 me owes 400
+/split 600 
+@friend1 owes 200 
+me owes 400
 
 ⚖️ Shares:
 /split 600
@@ -1926,17 +1953,14 @@ me 40%
 for petrol pump
 
 ━━ 💸 Settle Up ━━
-
 /paid 500 to @user
 /got 500 from @user
 
 ━━ 📊 Who Owes What ━━
-
 /balances
 /summary
 
 ━━ 🧾 Manage ━━
-
 /history
 /delete
 /resetall ⚠️

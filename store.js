@@ -150,18 +150,28 @@ async function discoverAndRegisterMappings(phone, contact) {
   }
 
   if (name) {
+    // If this name already mapped to a DIFFERENT canonical (stale data from a previous
+    // session), register the old canonical as a 'phone' alias of the new one.
+    // This lets getNetBetween (which traverses getUserIds().phones) find balances stored
+    // under the old key, and makes normalizeUserId(oldPhone) = newPhone so that
+    // handleBalances deduplicates the two entries into one.
+    const prevCanonical = resolveAlias(name.toLowerCase());
+    if (prevCanonical && prevCanonical !== canonicalPhone) {
+      registerUserMapping(canonicalPhone, prevCanonical, 'phone');
+    }
     registerName(canonicalPhone, name);
     registerAlias(name.toLowerCase(), canonicalPhone, 'name');
   }
 }
 
 /**
- * Populate the name cache for a list of phones using the WhatsApp client.
- * Already-cached phones are skipped.  Errors are silently ignored.
+ * Populate the name cache and refresh alias mappings for a list of phones.
+ * Always calls discoverAndRegisterMappings (even if name already cached) so that
+ * stale name→canonical aliases are updated whenever the bot encounters a user.
+ * Errors are silently ignored.
  */
 async function cacheNames(phones, client) {
   for (const phone of phones) {
-    if (getUserName(phone)) continue;
     try {
       const contact = await client.getContactById(`${phone}@c.us`);
       await discoverAndRegisterMappings(phone, contact);
