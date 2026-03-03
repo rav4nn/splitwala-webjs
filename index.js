@@ -107,35 +107,11 @@ const USAGE =
   '✅ Use one of the supported slash commands.\n' +
   '📝 Example: /help';
 
-const DM_REPLY =
-  `👋 Hey! I'm Splitwala\n\n` +
-  `I help you split expenses automatically in WhatsApp groups 💸\n` +
-  `No app installs required 🙌\n\n` +
-  `👉 Add me to a group with your friends\n` +
-  `👉 Send something like: \n"/split 600 @all for dinner"\n\n` +
-  `And I'll handle the rest 😎`;
-
-const DM_FOLLOWUP =
-  `😄 I only work inside groups!\n\n` +
-  `Add me to a WhatsApp group with your friends and I'll handle all the splitting for you 🪄\n\n` +
-  `No apps, no signups — just magic ✨`;
-
-// Tracks DM senders who've already received the intro so we don't spam them
-const dmGreetedUsers = new Set();
-
 client.on('message', async msg => {
   if (msg.isStatus || msg.fromMe) return;
 
-  // Reply to DMs — bot only works in groups
-  if (!msg.from.endsWith('@g.us')) {
-    if (dmGreetedUsers.has(msg.from)) {
-      await client.sendMessage(msg.from, DM_FOLLOWUP);
-    } else {
-      dmGreetedUsers.add(msg.from);
-      await client.sendMessage(msg.from, DM_REPLY);
-    }
-    return;
-  }
+  // Ignore DMs silently; bot only works in groups.
+  if (!msg.from.endsWith('@g.us')) return;
 
   const text  = msg.body.trim();
   if (!text.startsWith('/')) return;
@@ -159,3 +135,4 @@ client.on('message', async msg => {
 
 
 client.initialize();
+
