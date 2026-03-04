@@ -1933,8 +1933,8 @@ async function handleHelp(msg, client) {
 
 ━━ 🚀 Start Here ━━
 Split ₹600:
-/split 600 @all
 /split 200 between @friend1 and me
+/split 600 @all for lunch
 /split 600 by @friend1 between @friend1 and me
 
 Add description:
