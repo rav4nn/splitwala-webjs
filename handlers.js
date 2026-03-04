@@ -42,6 +42,16 @@ function toThreeLineError(rawProblem, fix, example) {
   return formatInputError(normalized, fix, example);
 }
 
+const LID_RESOLUTION_NOTE =
+  'The numerical ID will auto-resolve to actual group member once they interact in the group.';
+
+function appendLidResolutionNote(text) {
+  if (!text || text.includes(LID_RESOLUTION_NOTE)) return text;
+  // LID-like IDs are long numeric tokens that can appear as "@123..." or plain "123..."
+  if (!/(?:^|[\s@])\d{13,}(?!\d)/.test(text)) return text;
+  return `${text}\n\n${LID_RESOLUTION_NOTE}`;
+}
+
 /**
  * Resolve a text token to { phone, fullId }.
  * Recognises "me/I/myself", @mention phone numbers, and participant names.
@@ -1118,7 +1128,7 @@ async function handlePercentageSplit(msg, client, chat, senderId, senderFullId, 
     ...owedLines,
   ].join('\n');
 
-  await client.sendMessage(chatId, reply, {
+  await client.sendMessage(chatId, appendLidResolutionNote(reply), {
     mentions: allParticipants.map(p => participantMap[p] || `${p}@c.us`)
   });
 }
@@ -1262,7 +1272,7 @@ async function handleSharesSplit(msg, client, chat, senderId, senderFullId, part
     ...owedLines,
   ].join('\n');
 
-  await client.sendMessage(chatId, reply, {
+  await client.sendMessage(chatId, appendLidResolutionNote(reply), {
     mentions: allParticipants.map(p => participantMap[p] || `${p}@c.us`)
   });
 }
@@ -1564,7 +1574,7 @@ async function handleSplit(msg, client) {
     ...owedLines,
   ].join('\n');
 
-  await client.sendMessage(chatId, reply, { mentions: participants.map(p => participantMap[p] || `${p}@c.us`) });
+  await client.sendMessage(chatId, appendLidResolutionNote(reply), { mentions: participants.map(p => participantMap[p] || `${p}@c.us`) });
 }
 
 
@@ -1609,7 +1619,7 @@ async function handleBalances(msg, client) {
       reply = `💸 You get ₹${result.amount.toFixed(2)}\n\n🟢 @${targetCanonical} ₹${result.amount.toFixed(2)}`;
     }
 
-    await client.sendMessage(chatId, reply, { mentions: [senderFullId, target.fullId] });
+    await client.sendMessage(chatId, appendLidResolutionNote(reply), { mentions: [senderFullId, target.fullId] });
     return;
   }
 
@@ -1712,7 +1722,7 @@ async function handleBalances(msg, client) {
   }
 
   const sendOpts = mentionFullIds.length > 0 ? { mentions: mentionFullIds } : {};
-  await client.sendMessage(chatId, responseLines.join('\n'), sendOpts);
+  await client.sendMessage(chatId, appendLidResolutionNote(responseLines.join('\n')), sendOpts);
 }
 
 
@@ -1881,7 +1891,7 @@ async function handleSettlement(msg, client, isPaidCommand) {
       recordSettlement(chatId, senderCanonical, counterpartyCanonical, amount);
       
       const reply = `✅ Payment recorded:\n@${senderCanonical} paid @${counterpartyCanonical} ${formatCurrency(amount)}`;
-      await client.sendMessage(chatId, reply, {
+      await client.sendMessage(chatId, appendLidResolutionNote(reply), {
         mentions: [senderFullId, counterparty.fullId]
       });
     } else {
@@ -1890,7 +1900,7 @@ async function handleSettlement(msg, client, isPaidCommand) {
       recordSettlement(chatId, counterpartyCanonical, senderCanonical, amount);
 
       const reply = `✅ Payment recorded:\n@${counterpartyCanonical} paid @${senderCanonical} ${formatCurrency(amount)}`;
-      await client.sendMessage(chatId, reply, { 
+      await client.sendMessage(chatId, appendLidResolutionNote(reply), { 
         mentions: [senderFullId, counterparty.fullId] 
       });
     }
@@ -2042,7 +2052,7 @@ async function handleSummary(msg, client) {
 
   const reply = `✨ Balances simplified through the magic of SplitWala ✨\n\n💰 Final Summary:\n\n${lines.join('\n')}`;
 
-  await client.sendMessage(chatId, reply, mentions.length > 0 ? { mentions } : {});
+  await client.sendMessage(chatId, appendLidResolutionNote(reply), mentions.length > 0 ? { mentions } : {});
 }
 
 
