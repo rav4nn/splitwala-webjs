@@ -1,7 +1,7 @@
 # SplitWala
 
 A WhatsApp bot for splitting expenses and tracking shared balances, built with Node.js and [whatsapp-web.js](https://github.com/pedroslopez/whatsapp-web.js).
-
+Add +918799743633 to your WhatsApp group and msg /help
 No Meta developer account, no API keys, no webhooks — just scan a QR code once and the bot is live.
 
 ## Tech Stack
