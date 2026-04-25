@@ -13,6 +13,8 @@
 
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode                = require('qrcode-terminal');
+const fs                    = require('fs');
+const path                  = require('path');
 
 // Initialise SQLite database before anything else
 require('./db');
@@ -21,11 +23,71 @@ const { cacheNames, stripSuffix, saveData, findCanonicalPhone, discoverAndRegist
 const { handleSplit, handleBalances, handlePaid, handleGot, handleHelp, handleSummary } = require('./handlers');
 const { handleResetAll, handleHistory, handleDelete }    = require('./adminHandlers');
 
+// ─── Process-level safety nets ────────────────────────────────────────────────
+// A single rejected promise in a deep handler used to crash the whole bot.
+// Log and keep running — the WhatsApp client itself recovers via its own events.
+process.on('unhandledRejection', (reason) => {
+  console.error('[unhandledRejection]', reason);
+});
+process.on('uncaughtException', (err) => {
+  console.error('[uncaughtException]', err);
+});
+
+
+// ─── Stale session lock cleanup ───────────────────────────────────────────────
+// If Chromium didn't shut down cleanly (Windows kill, machine sleep, AV),
+// SingletonLock/Cookie/Socket can stay behind and block the next launch.
+const sessionDir = path.join(__dirname, '.wwebjs_auth', 'session');
+for (const f of ['SingletonLock', 'SingletonCookie', 'SingletonSocket']) {
+  try {
+    fs.unlinkSync(path.join(sessionDir, f));
+    console.log(`[startup] Removed stale ${f}`);
+  } catch (_) { /* not present — normal */ }
+}
+
+
+// ─── Healthchecks.io heartbeat ────────────────────────────────────────────────
+// Set HEALTHCHECK_URL in the environment to a unique check URL from
+// https://healthchecks.io. The bot pings it every 60 s while WhatsApp is
+// connected; if pings stop for the grace period you configure on healthchecks.io
+// (e.g. 5 min), it emails / pushes / Telegrams you that the bot is down.
+const HEALTHCHECK_URL = process.env.HEALTHCHECK_URL;
+let healthInterval = null;
+
+function startHeartbeat() {
+  if (!HEALTHCHECK_URL || healthInterval) return;
+  const ping = () => fetch(HEALTHCHECK_URL).catch(err =>
+    console.error('[health] ping failed:', err.message));
+  ping();
+  healthInterval = setInterval(ping, 60_000);
+}
+
+function stopHeartbeat() {
+  if (healthInterval) {
+    clearInterval(healthInterval);
+    healthInterval = null;
+  }
+}
+
+function notifyFail(msg) {
+  if (!HEALTHCHECK_URL) return;
+  fetch(`${HEALTHCHECK_URL}/fail`, { method: 'POST', body: String(msg) })
+    .catch(() => {});
+}
+
+
 // ─── WhatsApp client ──────────────────────────────────────────────────────────
 
 // LocalAuth persists the session in .wwebjs_auth/ so the QR scan is only needed once.
+// webVersionCache 'remote' bypasses the local .wwebjs_cache/ that goes stale every
+// time WhatsApp Web rolls out an update — pulls the matching HTML fresh from the
+// wppconnect-team/wa-version archive instead.
 const client = new Client({
   authStrategy: new LocalAuth(),
+  webVersionCache: {
+    type: 'remote',
+    remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/{version}.html',
+  },
   puppeteer: {
     args: ['--no-sandbox', '--disable-setuid-sandbox']
   }
@@ -39,14 +101,35 @@ client.on('qr', qr => {
 client.on('ready', () => {
   console.log('✅ SplitWala is ready!');
   console.log('   Commands: /split  /balances  /paid  /got  /help  /summary  /history  /delete  /resetall');
+  startHeartbeat();
 });
 
 client.on('auth_failure', msg => {
   console.error('[auth] Authentication failed:', msg);
+  notifyFail(`auth_failure: ${msg}`);
 });
 
-client.on('disconnected', reason => {
+let reconnecting = false;
+client.on('disconnected', async (reason) => {
   console.warn('[client] Disconnected:', reason);
+  stopHeartbeat();
+  notifyFail(`disconnected: ${reason}`);
+
+  if (reconnecting) return;
+  reconnecting = true;
+
+  try {
+    await client.destroy();
+  } catch (err) {
+    console.error('[client] destroy failed:', err.message);
+  }
+
+  setTimeout(() => {
+    reconnecting = false;
+    console.log('[client] Reinitializing after disconnect...');
+    client.initialize().catch(err =>
+      console.error('[client] Reinit failed:', err.message));
+  }, 5000);
 });
 
 

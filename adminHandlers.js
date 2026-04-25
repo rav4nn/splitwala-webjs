@@ -17,6 +17,16 @@ const {
   resetAllGroupData,
 } = require('./store');
 
+const LID_RESOLUTION_NOTE =
+  'The numerical ID will auto-resolve to actual group member once they interact in the group.';
+
+function appendLidResolutionNote(text) {
+  if (!text || text.includes(LID_RESOLUTION_NOTE)) return text;
+  // LID-like IDs are long numeric tokens that can appear as "@123..." or plain "123..."
+  if (!/(?:^|[\s@])\d{13,}(?!\d)/.test(text)) return text;
+  return `${text}\n\n${LID_RESOLUTION_NOTE}`;
+}
+
 
 // ─── Pending confirmations ────────────────────────────────────────────────────
 //
@@ -482,7 +492,7 @@ To confirm, type exactly:
   }
 
   const response = `💰 Final Summary before reset:\n\n${lines.join('\n')}${suffix}`;
-  await client.sendMessage(chatId, response, mentions.length > 0 ? { mentions } : {});
+  await client.sendMessage(chatId, appendLidResolutionNote(response), mentions.length > 0 ? { mentions } : {});
 }
 
 
@@ -539,7 +549,7 @@ async function handleHistory(msg, client) {
     blocks.push(formatted);
   }
   
-  await client.sendMessage(chatId, blocks.join('\n\n'));
+  await client.sendMessage(chatId, appendLidResolutionNote(blocks.join('\n\n')));
 }
 
 
@@ -588,7 +598,7 @@ async function handleDelete(msg, client) {
     
     const reply = `📋 Recent transactions:\n\n${blocks.join('\n\n')}\n\nTo delete a transaction, type:\n/delete <number>\n\nExample: /delete 2`;
     
-    await client.sendMessage(chatId, reply);
+    await client.sendMessage(chatId, appendLidResolutionNote(reply));
     return;
   }
 
@@ -615,7 +625,7 @@ ${formattedTx}
 
 ✅ Transaction has been removed.`;
     
-    await client.sendMessage(chatId, deletionMessage);
+    await client.sendMessage(chatId, appendLidResolutionNote(deletionMessage));
     return;
   }
 
