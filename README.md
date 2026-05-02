@@ -2,7 +2,7 @@
 
 A WhatsApp bot for splitting expenses and tracking shared balances, built with Node.js and [whatsapp-web.js](https://github.com/pedroslopez/whatsapp-web.js).
 
-Add +918799743633 to your WhatsApp group and msg /help
+Add +918799743633 to your WhatsApp group, **or** add the Telegram bot to a Telegram group, then `/help`.
 
 No Meta developer account, no API keys, no webhooks — just scan a QR code once and the bot is live.
 
@@ -12,6 +12,29 @@ No Meta developer account, no API keys, no webhooks — just scan a QR code once
 - **whatsapp-web.js** — runs a real WhatsApp Web session
 - **better-sqlite3** — persistent SQLite storage (balances survive restarts)
 - **PM2** — recommended for VPS deployment
+
+## Telegram Front Door (sprint 2+)
+
+SplitWala can also run as a Telegram bot, sharing all parsing & balance logic with the WhatsApp bot.
+
+### Setup
+
+1. Open Telegram, message `@BotFather`, send `/newbot`, follow the prompts.
+2. Copy the bot token into `.env` as `TELEGRAM_BOT_TOKEN`.
+3. **Disable group privacy mode** so the bot can read `/split` etc. in groups:
+   `@BotFather → /mybots → <your bot> → Bot Settings → Group Privacy → Turn OFF`.
+4. Add the bot to a group as an admin (optional, but lets it read all messages).
+5. `npm run start:tg` (or `pm2 start ecosystem.config.js --only splitwala-tg`).
+
+### Commands
+
+Same as WhatsApp: `/split /balances /paid /got /summary /history /delete /resetall /help`.
+
+### Notes
+
+- WhatsApp and Telegram have **separate balance ledgers** (separate sqlite files). A user with accounts on both transports gets two independent scoreboards.
+- Telegram users without a public `@username` are still resolvable when explicitly tagged via Telegram's reply-style mention.
+- `/split` on Telegram (sprint 2 scope) supports equal splits with optional `for <label>`. Custom contribution syntax (`by`, `between`, "owes") is sprint-3 work.
 
 ## Commands
 
