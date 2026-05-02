@@ -25,23 +25,21 @@ const {
 } = require('./store');
 const corePaid = require('./core/parser').parsePaidCommand;
 const coreGot  = require('./core/parser').parseGotCommand;
+const {
+  formatError: coreFormatError,
+  formatHelpText,
+  formatNoBalancesMessage,
+} = require('./core/format');
 
 
 // ─── Shared helpers ───────────────────────────────────────────────────────────
 
 function formatInputError(problem, fix, example) {
-  return `❌ ${problem}\n✅ ${fix}\n📝 Example: ${example}`;
+  return coreFormatError(problem, fix, example);
 }
 
-function toThreeLineError(rawProblem, fix, example) {
-  const normalized = String(rawProblem || 'Invalid input.')
-    .replace(/^\s*❌\s*/i, '')
-    .split('\n')
-    .map(line => line.replace(/^\s*[-•]\s*/, '').trim())
-    .filter(Boolean)
-    .join(' ');
-
-  return formatInputError(normalized, fix, example);
+function toThreeLineError(problem, fix, example) {
+  return coreFormatError(problem, fix, example);
 }
 
 const LID_RESOLUTION_NOTE =
@@ -1950,54 +1948,7 @@ async function handleGot(msg, client) {
  * Handler for /help command
  */
 async function handleHelp(msg, client) {
-  const helpMessage = 
-`🤖 *SplitWala* — no more "bhai tu de na" 😄
-
-━━ 🚀 Start Here ━━
-Split ₹600:
-/split 200 between @friend1 and me
-/split 600 @all for lunch
-/split 600 by @friend1 between @friend1 and me
-
-Add description:
-/split 600 by @friend2 between @friend2 @friend3 and me 
-for dinner 🍽️
-
-━━ 🧠 Smart Splits ━━
-
-💰 Unequal amounts:
-/split 600 
-@friend1 owes 200 
-me owes 400
-
-⚖️ Shares:
-/split 600
-@friend1 2 shares
-me 1 share
-for lunch
-
-📊 Percentages:
-/split 600
-@friend1 60%
-me 40%
-for petrol pump
-
-━━ 💸 Settle Up ━━
-/paid 500 to @user
-/got 500 from @user
-
-━━ 📊 Who Owes What ━━
-/balances
-/summary
-
-━━ 🧾 Manage ━━
-/history
-/delete
-/resetall ⚠️
-
-⚠️ Use @mentions only (no names)`;
-
-  await client.sendMessage(msg.from, helpMessage);
+  await client.sendMessage(msg.from, formatHelpText());
 }
 
 
@@ -2014,12 +1965,7 @@ async function handleSummary(msg, client) {
   const simplified = getSimplifiedBalances(chatId);
 
   if (simplified.length === 0) {
-    const participants = getParticipants(chatId);
-    if (participants.length === 0) {
-      await client.sendMessage(chatId, 'No expenses recorded yet.');
-    } else {
-      await client.sendMessage(chatId, '✅ All settled up!');
-    }
+    await client.sendMessage(chatId, formatNoBalancesMessage(getParticipants(chatId).length === 0));
     return;
   }
 
