@@ -16,6 +16,7 @@ const {
   deleteTransaction,
   resetAllGroupData,
 } = require('./store');
+const { parseHistoryArgs, parseDeleteArgs, parseResetAllArgs } = require('./core/parser');
 
 const LID_RESOLUTION_NOTE =
   'The numerical ID will auto-resolve to actual group member once they interact in the group.';
@@ -367,14 +368,11 @@ function formatTransactionForDeletePreview(tx, index) {
 async function handleResetAll(msg, client) {
   const chatId   = msg.from;
   const senderId = stripSuffix(msg.author || msg.from);
-  const lower    = msg.body.trim().toLowerCase();
+  const { confirmed } = parseResetAllArgs(msg.body);
 
   cleanExpired();
-
-  // Check if this is a confirmation
-  const isConfirm = lower.includes('confirm');
   
-  if (!isConfirm) {
+  if (!confirmed) {
     // INITIATE RESET REQUEST
     
     // Check if a reset is already pending for this group
@@ -501,26 +499,21 @@ To confirm, type exactly:
 async function handleHistory(msg, client) {
   const chatId   = msg.from;
   const senderId = stripSuffix(msg.author || msg.from);
-  const text     = msg.body.trim();
-
   cleanExpired();
 
-  const args = text.split(/\s+/).slice(1);
-  let count       = 5;
+  const { count, filterToken, error: histErr } = parseHistoryArgs(msg.body);
+  if (histErr) {
+    await client.sendMessage(chatId, `❌ ${histErr}`);
+    return;
+  }
+
   let targetPhone = null;
 
-  for (const arg of args) {
-    const n = parseInt(arg);
-    if (!isNaN(n)) {
-      if (n < 1 || n > 20) {
-        await client.sendMessage(chatId, 'Please specify a count between 1 and 20.');
-        return;
-      }
-      count = n;
-    } else if (arg.toLowerCase() === 'me') {
+  if (filterToken) {
+    if (filterToken.toLowerCase() === 'me') {
       targetPhone = senderId;
-    } else if (arg.startsWith('@')) {
-      targetPhone = arg.slice(1);
+    } else if (filterToken.startsWith('@')) {
+      targetPhone = filterToken.slice(1);
     }
   }
 
@@ -558,25 +551,16 @@ async function handleHistory(msg, client) {
 async function handleDelete(msg, client) {
   const chatId   = msg.from;
   const senderId = stripSuffix(msg.author || msg.from);
-  const text     = msg.body.trim();
-
   cleanExpired();
 
-  // Parse arguments
-  const args = text.split(/\s+/).slice(1);
-  
-  // Get index if provided (e.g., /delete 2)
-  let index = null;
-  for (const arg of args) {
-    const n = parseInt(arg);
-    if (!isNaN(n) && n > 0) {
-      index = n;
-      break;
-    }
+  const { mode, index, error: delErr } = parseDeleteArgs(msg.body);
+  if (delErr) {
+    await client.sendMessage(chatId, `❌ ${delErr}`);
+    return;
   }
 
   // Step 1: Show transaction list (no arguments)
-  if (args.length === 0) {
+  if (mode === 'list') {
     // Get all transactions for this group
     const groupTxs = getGroupTransactions(chatId);
     
@@ -603,7 +587,7 @@ async function handleDelete(msg, client) {
   }
 
   // Step 2: Direct delete when index is provided
-  if (index !== null) {
+  if (mode === 'delete') {
     // Get transaction by index
     const tx = getTransactionByIndex(chatId, index);
     if (!tx) {
@@ -629,14 +613,6 @@ ${formattedTx}
     return;
   }
 
-  // Invalid command format
-  await client.sendMessage(chatId,
-    'Usage:\n' +
-    '- /delete — view recent transactions\n' +
-    '- /delete <number> — delete transaction immediately\n\n' +
-    'Example:\n' +
-    '1. /delete (view list)\n' +
-    '2. /delete 2 (delete second transaction)');
 }
 
 module.exports = { handleResetAll, handleHistory, handleDelete };

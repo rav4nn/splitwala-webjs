@@ -23,6 +23,8 @@ const {
   normalizeUserId,
   discoverAndRegisterMappings,
 } = require('./store');
+const corePaid = require('./core/parser').parsePaidCommand;
+const coreGot  = require('./core/parser').parseGotCommand;
 
 
 // ─── Shared helpers ───────────────────────────────────────────────────────────
@@ -1733,6 +1735,11 @@ async function handleBalances(msg, client) {
  * Returns { amount, counterpartyText } or null if parsing fails
  */
 function parsePaidCommand(text) {
+  const parsed = corePaid(text);
+  if (!parsed.error && parsed.amount && parsed.toToken && !parsed.fromToken) {
+    return { amount: parsed.amount, counterpartyText: parsed.toToken };
+  }
+
   // Remove /paid prefix and trim
   const cleanText = text.replace(/^\/paid\s+/i, '').trim();
   if (!cleanText) return null;
@@ -1765,6 +1772,11 @@ function parsePaidCommand(text) {
  * Returns { amount, counterpartyText } or null if parsing fails
  */
 function parseGotCommand(text) {
+  const parsed = coreGot(text);
+  if (!parsed.error && parsed.amount && parsed.fromToken) {
+    return { amount: parsed.amount, counterpartyText: parsed.fromToken };
+  }
+
   // Remove /got prefix and trim
   const cleanText = text.replace(/^\/got\s+/i, '').trim();
   if (!cleanText) return null;
