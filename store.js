@@ -18,6 +18,7 @@ const {
   getBalanceAmount, setBalance, getGroupBalances,
   resetGroup: dbResetGroup,
 } = require('./db');
+const { formatCurrency, generateId } = require('./core/identity');
 
 // ── Identity helpers ───────────────────────────────────────────────────────────
 
@@ -29,16 +30,6 @@ function stripSuffix(waId) {
 /** Extract phone numbers from all @-mentions on a message, normalized to canonical phones. */
 function getMentionedPhones(msg) {
   return (msg.mentionedIds || []).map(id => normalizeUserId(stripSuffix(id)));
-}
-
-// ── Formatting ─────────────────────────────────────────────────────────────────
-
-function formatCurrency(amount) {
-  return `₹${parseFloat(amount).toFixed(2)}`;
-}
-
-function generateId() {
-  return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 }
 
 // ── Name cache ─────────────────────────────────────────────────────────────────
