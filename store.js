@@ -19,6 +19,7 @@ const {
   resetGroup: dbResetGroup,
 } = require('./db');
 const { formatCurrency, generateId } = require('./core/identity');
+const { simplifyDebts, roundCurrency } = require('./core/balance');
 
 // ── Identity helpers ───────────────────────────────────────────────────────────
 
@@ -221,7 +222,7 @@ function updateBalance(groupId, debtorPhone, creditorPhone, amount) {
 
   const fwd = getBalanceAmount(groupId, normDebtor,   normCreditor);
   const rev = getBalanceAmount(groupId, normCreditor, normDebtor);
-  const net = Math.round((fwd - rev + amount) * 100) / 100;
+  const net = roundCurrency(fwd - rev + amount);
 
   if (net > 0) {
     setBalance(groupId, normDebtor,   normCreditor, net);
@@ -256,7 +257,7 @@ function getNetBetween(groupId, phone1, phone2) {
     }
   }
 
-  const net = Math.round((p1owesP2 - p2owesP1) * 100) / 100;
+  const net = roundCurrency(p1owesP2 - p2owesP1);
   if (Math.abs(net) < 0.005) return { settled: true };
   return net > 0
     ? { owes: norm1, owedTo: norm2, amount: net }
@@ -295,7 +296,7 @@ function getOverallNet(groupId, userPhone) {
     if (userAliases.includes(creditor)) total += amount;   // others owe user
     if (userAliases.includes(debtor))   total -= amount;   // user owes others
   }
-  return Math.round(total * 100) / 100;
+  return roundCurrency(total);
 }
 
 /** All unique phones that have ever appeared in balance rows for this group. */
@@ -314,38 +315,10 @@ function getParticipants(groupId) {
  */
 function getSimplifiedBalances(groupId) {
   const participants = getParticipants(groupId);
-  const nets = participants
-    .map(phone => ({ phone, net: getOverallNet(groupId, phone) }))
-    .filter(p => Math.abs(p.net) > 0.005);
-
-  if (nets.length === 0) return [];
-
-  const creditors = nets.filter(p => p.net > 0).sort((a, b) => b.net - a.net);
-  const debtors   = nets.filter(p => p.net < 0).sort((a, b) => a.net - b.net);
-
-  const result = [];
-  let i = 0, j = 0;
-
-  while (i < creditors.length && j < debtors.length) {
-    const creditor = creditors[i];
-    const debtor   = debtors[j];
-    const amount   = Math.min(creditor.net, -debtor.net);
-
-    if (amount > 0.005) {
-      result.push({
-        from:   debtor.phone,
-        to:     creditor.phone,
-        amount: Math.round(amount * 100) / 100,
-      });
-      creditor.net -= amount;
-      debtor.net   += amount;
-    }
-
-    if (Math.abs(creditor.net) < 0.005) i++;
-    if (Math.abs(debtor.net)   < 0.005) j++;
-  }
-
-  return result;
+  const entries = participants
+    .map(phone => ({ id: phone, net: getOverallNet(groupId, phone) }));
+  const result = simplifyDebts(entries);
+  return result.map(t => ({ from: t.from, to: t.to, amount: t.amount }));
 }
 
 /** Returns [{ phone, net }] sorted descending; positive net = owed money. */
