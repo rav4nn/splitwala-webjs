@@ -1,0 +1,46 @@
+'use strict';
+/**
+ * In-memory cache of group members per chat: chatId → Map<userId, { name, username }>.
+ * Repopulated on bot start; updated lazily as messages arrive.
+ */
+
+const cache = new Map();
+
+function getMembers(chatId) {
+  if (!cache.has(chatId)) cache.set(chatId, new Map());
+  return cache.get(chatId);
+}
+
+function recordMember(chatId, user) {
+  if (!user || !user.id) return;
+  const members = getMembers(chatId);
+  const name = [user.first_name, user.last_name].filter(Boolean).join(' ').trim()
+            || user.username
+            || String(user.id);
+  members.set(String(user.id), { name, username: user.username ? user.username.toLowerCase() : null });
+}
+
+function listMembers(chatId) {
+  return [...getMembers(chatId).entries()].map(([id, v]) => ({ id, ...v }));
+}
+
+function lookupByUsername(chatId, username) {
+  const u = username.replace(/^@/, '').toLowerCase();
+  for (const [id, v] of getMembers(chatId)) {
+    if (v.username === u) return { id, ...v };
+  }
+  return null;
+}
+
+function lookupByName(chatId, text) {
+  const needle = text.toLowerCase();
+  for (const [id, v] of getMembers(chatId)) {
+    const n = v.name.toLowerCase();
+    if (n === needle || n.includes(needle) || needle.includes(n)) {
+      return { id, ...v };
+    }
+  }
+  return null;
+}
+
+module.exports = { recordMember, listMembers, lookupByUsername, lookupByName };
