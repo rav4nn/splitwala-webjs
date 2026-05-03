@@ -14,3 +14,6 @@ data/
 
 # PM2 log output
 logs/
+
+# Sprint planning notes — local to the developer, not committed
+sprints/
