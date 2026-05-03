@@ -181,8 +181,18 @@ async function advanceSplitWizard(ctx, w) {
     w.step = 'participants';
     const members = memberCache.getKnownMembers(chatId);
     if (members.length < 2) {
-      // Only knows 0–1 members; can't show toggle usefully
-      w.participants = [...new Set([w.payer, senderId])];
+      // Cache too sparse to show a useful toggle keyboard.
+      // Only proceed if payer and sender are different people (2 participants).
+      const fallback = [...new Set([w.payer, senderId])];
+      if (fallback.length < 2) {
+        await ctx.reply(
+          "I don't know anyone else in this group yet.\n" +
+          'Tag people with @username in your /split message, or have others send a message first.'
+        );
+        clearWizard(chatId, senderId);
+        return;
+      }
+      w.participants = fallback;
       setWizard(chatId, senderId, w);
       return advanceSplitWizard(ctx, w);
     }
@@ -411,19 +421,39 @@ async function startSplitWizard(ctx) {
   const senderId = String(ctx.from.id);
   const text     = ctx.message?.text || '';
 
-  // Cancel any pre-existing wizard for this user in this chat
   clearWizard(chatId, senderId);
 
-  // LLM parse (graceful fallback on failure)
+  // ── Step A: extract explicit @mentions from Telegram entities ───────────────
+  // This is more reliable than LLM for participant resolution — Telegram gives
+  // us the exact username even if the user has never sent a message (not cached).
+  const entityParticipantIds = [];
+  for (const e of (ctx.message?.entities || [])) {
+    if (e.type === 'mention') {
+      const uname = text.slice(e.offset + 1, e.offset + e.length).toLowerCase();
+      if (!uname) continue;
+      const cached = memberCache.lookupByUsername(chatId, uname);
+      const uid = cached ? cached.id : `@${uname}`;
+      // Register a placeholder name so store.getName() shows something readable
+      if (!cached) store.registerName(uid, `@${uname}`);
+      entityParticipantIds.push(uid);
+    } else if (e.type === 'text_mention' && e.user) {
+      memberCache.recordMember(chatId, e.user);
+      entityParticipantIds.push(String(e.user.id));
+    }
+  }
+  // Always include sender
+  if (!entityParticipantIds.includes(senderId)) entityParticipantIds.push(senderId);
+  const hasExplicitMentions = entityParticipantIds.length >= 2;
+
+  // ── Step B: LLM parse for amount, label, payer intent ──────────────────────
   let intent = { amount: null, payer: null, participants: null, label: null, confidence: 'low' };
   try {
     intent = await parseSplitIntent(text, memberCache.getKnownMembers(chatId));
   } catch (err) {
     console.error('[split-wizard] LLM error:', err.message);
-    // Continue with nulls; wizard will ask for everything
   }
 
-  // Resolve payer to userId
+  // Resolve payer
   let payer = null;
   if (intent.payer === 'SENDER') {
     payer = senderId;
@@ -432,24 +462,31 @@ async function startSplitWizard(ctx) {
     payer = m ? m.id : null;
   }
 
-  // Resolve participants to userIds (null means needs keyboard)
-  const llmWasAll    = intent.participants === 'ALL';
-  const participants = resolveParticipants(intent.participants, senderId, chatId);
+  // ── Step C: decide participants ─────────────────────────────────────────────
+  // Prefer entity mentions (Telegram-verified) over LLM guesses.
+  let participants = null;
+  let llmWasAll   = false;
+  if (hasExplicitMentions) {
+    participants = [...new Set(entityParticipantIds)];
+  } else {
+    llmWasAll    = intent.participants === 'ALL';
+    participants = resolveParticipants(intent.participants, senderId, chatId);
+  }
 
   const w = {
-    userId:          senderId,
+    userId:             senderId,
     chatId,
-    groupId:         chatId,
-    originalMsgId:   ctx.message.message_id,
-    step:            null,
-    amount:          typeof intent.amount === 'number' && intent.amount > 0 ? intent.amount : null,
-    label:           intent.label || null,
+    groupId:            chatId,
+    originalMsgId:      ctx.message.message_id,
+    step:               null,
+    amount:             typeof intent.amount === 'number' && intent.amount > 0 ? intent.amount : null,
+    label:              intent.label || null,
     payer,
     participants,
     participantsToggle: null,
     llmWasAll,
-    questionMsgIds:  [],
-    confirmMsgId:    null,
+    questionMsgIds:     [],
+    confirmMsgId:       null,
   };
 
   setWizard(chatId, senderId, w);
