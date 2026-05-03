@@ -12,6 +12,7 @@ require('./tg/db-tg');           // initialise SQLite first
 
 const handlers = require('./handlers-tg');
 const memberCache = require('./tg/member-cache');
+const { handleSplitCallback, handleWizardText } = require('./tg/split-wizard');
 
 // ── Process-level safety nets ───────────────────────────────────────────────
 process.on('unhandledRejection', (reason) => console.error('[unhandledRejection]', reason));
@@ -53,7 +54,7 @@ bot.use(async (ctx, next) => {
 
 // ── Command routing ─────────────────────────────────────────────────────────
 bot.command('help',     handlers.handleHelp);
-bot.command('start',    handlers.handleHelp);
+bot.command('start',    handlers.handleStart);
 bot.command('split',    handlers.handleSplit);
 bot.command('balances', handlers.handleBalances);
 bot.command('summary',  handlers.handleSummary);
@@ -62,6 +63,25 @@ bot.command('got',      handlers.handleGot);
 bot.command('history',  handlers.handleHistory);
 bot.command('delete',   handlers.handleDelete);
 bot.command('resetall', handlers.handleResetAll);
+
+// ── Callback query routing ───────────────────────────────────────────────────
+bot.on('callback_query:data', async (ctx) => {
+  const data = ctx.callbackQuery.data || '';
+  if (data.startsWith('s:') && await handleSplitCallback(ctx)) return;
+  if (data.startsWith('d:') && await handlers.handleDeleteCallback(ctx)) return;
+  await ctx.answerCallbackQuery();
+});
+
+// ── Text message routing ─────────────────────────────────────────────────────
+bot.on('message', async (ctx) => {
+  // In group chats, let active split wizards intercept text first (amount step)
+  if (ctx.chat.type !== 'private' && ctx.message?.text) {
+    if (await handleWizardText(ctx)) return;
+  }
+  if (ctx.chat.type === 'private') {
+    await handlers.handleStart(ctx);
+  }
+});
 
 bot.catch((err) => {
   console.error('[bot-tg] handler error:', err.error || err);

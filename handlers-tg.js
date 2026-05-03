@@ -5,9 +5,11 @@
  * Imports core/* for all transport-agnostic logic and tg/* for Telegram-specific bits.
  */
 
+const { InlineKeyboard } = require('grammy');
 const store        = require('./tg/store-tg');
 const memberCache  = require('./tg/member-cache');
 const { createResolver } = require('./tg/tg-resolver');
+const { startSplitWizard } = require('./tg/split-wizard');
 
 const {
   parsePaidCommand, parseGotCommand, parseHistoryArgs,
@@ -50,6 +52,41 @@ function pollinateCache(ctx) {
 
 async function reply(ctx, text, opts = {}) {
   await ctx.reply(text, { parse_mode: 'HTML', ...opts });
+}
+
+// ── /start (DM welcome) ─────────────────────────────────────────────────────
+
+const START_DM_TEXT = [
+  '<b>SplitWala</b> — split expenses in Telegram groups.',
+  '',
+  'Add me to a group and I\'ll track who owes whom.',
+  '',
+  '<b>How to get started:</b>',
+  '1. Add me to a group chat',
+  '2. Send /split 600 @alice @bob — I\'ll split it equally',
+  '3. Use /balances to see who owes what',
+  '4. Use /paid 200 to @alice when someone pays up',
+  '',
+  'That\'s it — no sign-up, no app install.',
+  '',
+  '<b>All commands:</b>',
+].join('\n');
+
+async function handleStart(ctx) {
+  pollinateCache(ctx);
+  if (ctx.chat.type === 'private') {
+    const botInfo = ctx.me;
+    const addUrl = `https://t.me/${botInfo.username}?startgroup=true`;
+    await reply(ctx, START_DM_TEXT + '\n' + escapeHtml(formatHelpText()), {
+      reply_markup: {
+        inline_keyboard: [[
+          { text: 'Add me to a group', url: addUrl },
+        ]],
+      },
+    });
+    return;
+  }
+  await reply(ctx, escapeHtml(formatHelpText()));
 }
 
 // ── /help ────────────────────────────────────────────────────────────────────
@@ -168,119 +205,17 @@ async function handleGot(ctx) {
 }
 
 // ── /split ───────────────────────────────────────────────────────────────────
-//
-// MVP: equal split among everyone mentioned, or @all if no mentions.
-// The full WhatsApp /split grammar (custom contributions, "owes" clauses,
-// "by", "between") is sprint-3 work — for sprint 2, the Telegram split
-// supports: /split <amount> [@A @B ...] [for <label>]
+// Sprint 3: routes into the NLP-powered split wizard (tg/split-wizard.js).
+// The wizard handles LLM parsing, guided inline-keyboard questions, and
+// confirmation before committing anything to the store.
 
 async function handleSplit(ctx) {
   pollinateCache(ctx);
-  const r = createResolver(ctx);
-  const groupId = String(ctx.chat.id);
-  const text = ctx.message.text || '';
-
-  // 1. Parse label (and strip it from text for amount/mention parsing)
-  const { label, error: labelErr } = parseLabel(text);
-  if (labelErr) {
-    await reply(ctx, formatError(labelErr, 'Use: for <description> (max 40 chars)', '/split 600 for dinner'));
+  if (ctx.chat.type === 'private') {
+    await reply(ctx, 'Add me to a group to start splitting expenses!');
     return;
   }
-  // Strip the label so it doesn't pollute mention parsing.
-  // - Newline label: drop any line whose trimmed content starts with "for "
-  // - Inline label: drop the trailing " for ..." segment from line 1
-  const textWithoutLabel = label
-    ? text.split('\n')
-        .map((line, idx) => {
-          if (idx > 0 && /^for\s+/i.test(line.trim())) return '';
-          if (idx === 0) return line.replace(/\s+for\s+.*$/i, '');
-          return line;
-        })
-        .join('\n')
-        .trim()
-    : text;
-
-  // 2. Extract amount
-  const body = textWithoutLabel.replace(/^\/split(?:@\w+)?\s*/i, '').trim();
-  const amountMatch = body.match(/^(\d+(?:\.\d+)?)/);
-  if (!amountMatch) {
-    await reply(ctx, formatError('Missing amount.',
-      'Use: /split <amount> [@person ...] [for <label>]', '/split 600 @alice @bob for dinner'));
-    return;
-  }
-  const amount = parseFloat(amountMatch[1]);
-  if (!(amount > 0)) {
-    await reply(ctx, formatError('Amount must be positive.',
-      'Use: /split <amount> [@person ...]', '/split 600 @alice'));
-    return;
-  }
-
-  // 3. Build participants list from mentions / @all / sender
-  const after = body.slice(amountMatch[0].length).trim();
-  const tokens = after.split(/\s+/).filter(Boolean);
-  let participants;
-
-  if (tokens.includes('@all') || tokens.length === 0) {
-    participants = await r.listAllParticipants();
-  } else {
-    participants = [];
-    const seen = new Set();
-    for (const tok of tokens) {
-      const res = await r.resolveByText(tok);
-      if (!res) {
-        await reply(ctx, formatError(`Couldn't find user "${tok}".`,
-          'Mention with @username or reply to a message.', '/split 600 @alice @bob'));
-        return;
-      }
-      if (!seen.has(res.id)) { seen.add(res.id); participants.push(res); }
-    }
-    // Always include sender
-    if (!seen.has(r.senderId)) {
-      participants.push({ id: r.senderId, mentionRef: { type: 'self', userId: Number(r.senderId) } });
-    }
-  }
-
-  if (participants.length < 2) {
-    await reply(ctx, formatError('Need at least 2 participants for a split.',
-      'Tag at least one other person, or use @all.', '/split 600 @alice'));
-    return;
-  }
-
-  // 4. Compute shares (equal split)
-  const share = Math.round((amount / participants.length) * 100) / 100;
-  const payerId = r.senderId;
-
-  const contributions = { [payerId]: amount };
-  const liabilities   = {};
-  const balanceDeltas = [];
-  for (const p of participants) {
-    liabilities[p.id] = share;
-    if (p.id !== payerId) {
-      store.updateBalance(groupId, p.id, payerId, share);
-      balanceDeltas.push({ debtor: p.id, creditor: payerId, amount: share });
-    }
-  }
-
-  // 5. Persist
-  store.addTransaction({
-    id:        generateId(),
-    type:      'expense',
-    groupId,
-    timestamp: new Date().toISOString(),
-    amount,
-    label,
-    contributions,
-    liabilities,
-    participants:  participants.map(p => p.id),
-    balanceDeltas,
-    message_id: String(ctx.message.message_id),
-  });
-
-  const payerName = store.getName(payerId);
-  const memberLines = participants.map(p => `• ${escapeHtml(store.getName(p.id))}: ${formatCurrency(share)}`);
-  const labelText   = label ? ` for ${escapeHtml(label)}` : '';
-  await reply(ctx,
-    `✅ ${escapeHtml(payerName)} paid ${formatCurrency(amount)}${labelText}\nSplit:\n${memberLines.join('\n')}`);
+  await startSplitWizard(ctx);
 }
 
 // ── /history ─────────────────────────────────────────────────────────────────
@@ -318,24 +253,44 @@ async function handleHistory(ctx) {
 }
 
 // ── /delete ──────────────────────────────────────────────────────────────────
+// Sprint 3: both modes now use inline keyboards for confirmation.
+
+function txLabel(t) {
+  if (t.type === 'settlement') {
+    return `${store.getName(t.from)} → ${store.getName(t.to)}: ${formatCurrency(t.amount)}`;
+  }
+  const payer = Object.keys(t.contributions)[0];
+  return `${store.getName(payer)} paid ${formatCurrency(t.amount)}${t.label ? ` (${t.label})` : ''}`;
+}
+
+function deleteSelectKeyboard(txs, userId) {
+  const kb = new InlineKeyboard();
+  txs.slice(0, 5).forEach((t, i) => {
+    kb.row().text(`${i + 1}. ${txLabel(t)}`, `d:sel:${t.id}:${userId}`);
+  });
+  kb.row().text('✗ Cancel', `d:cx::${userId}`);
+  return kb;
+}
+
+function deleteConfirmKeyboard(txId, userId) {
+  return new InlineKeyboard()
+    .text('🗑 Yes, delete', `d:ok:${txId}:${userId}`)
+    .text('✗ Keep',        `d:cx::${userId}`);
+}
 
 async function handleDelete(ctx) {
   pollinateCache(ctx);
-  const groupId = String(ctx.chat.id);
+  const groupId  = String(ctx.chat.id);
+  const userId   = String(ctx.from.id);
   const { mode, index, error } = parseDeleteArgs(ctx.message.text || '');
   if (error) { await reply(ctx, formatError(error, 'Use: /delete N (1–N)', '/delete 2')); return; }
 
   const txs = store.getGroupTransactions(groupId).slice(-20).reverse();
+
   if (mode === 'list') {
     if (txs.length === 0) { await reply(ctx, 'No transactions to delete.'); return; }
-    const lines = txs.map((t, idx) => {
-      if (t.type === 'settlement')
-        return `${idx + 1}. ${escapeHtml(store.getName(t.from))} → ${escapeHtml(store.getName(t.to))}: ${formatCurrency(t.amount)}`;
-      const payer = Object.keys(t.contributions)[0];
-      const labelTxt = t.label ? ` (${escapeHtml(t.label)})` : '';
-      return `${idx + 1}. ${escapeHtml(store.getName(payer))} paid ${formatCurrency(t.amount)}${labelTxt}`;
-    });
-    await reply(ctx, 'Recent transactions (use /delete N):\n' + lines.join('\n'));
+    const kb = deleteSelectKeyboard(txs, userId);
+    await reply(ctx, 'Which transaction do you want to delete?', { reply_markup: kb });
     return;
   }
 
@@ -344,8 +299,62 @@ async function handleDelete(ctx) {
     return;
   }
   const target = txs[index - 1];
-  store.deleteTransaction(target.id, groupId);
-  await reply(ctx, `🗑 Deleted transaction #${index}.`);
+  const kb = deleteConfirmKeyboard(target.id, userId);
+  await reply(ctx,
+    `Delete this transaction?\n<b>${escapeHtml(txLabel(target))}</b>`,
+    { parse_mode: 'HTML', reply_markup: kb });
+}
+
+// ── Delete callback handler (called from index-tg.js) ────────────────────────
+
+async function handleDeleteCallback(ctx) {
+  const data = ctx.callbackQuery?.data;
+  if (!data || !data.startsWith('d:')) return false;
+
+  const parts    = data.split(':');
+  const action   = parts[1];            // sel | ok | cx
+  const value    = parts[2] || '';      // txId (for sel/ok)
+  const ownerId  = parts[parts.length - 1];
+
+  if (String(ctx.from.id) !== ownerId) {
+    await ctx.answerCallbackQuery({ text: '🚫 Not your action.' });
+    return true;
+  }
+
+  const groupId = String(ctx.chat.id);
+
+  if (action === 'sel') {
+    // User picked a transaction from the list → show confirm keyboard
+    const tx = store.getGroupTransactions(groupId).find(t => t.id === value);
+    if (!tx) {
+      await ctx.answerCallbackQuery({ text: 'Transaction not found.' });
+      return true;
+    }
+    const kb = deleteConfirmKeyboard(tx.id, ownerId);
+    try {
+      await ctx.editMessageText(
+        `Delete this transaction?\n<b>${escapeHtml(txLabel(tx))}</b>`,
+        { parse_mode: 'HTML', reply_markup: kb }
+      );
+    } catch (_) {}
+    await ctx.answerCallbackQuery();
+    return true;
+  }
+
+  if (action === 'ok') {
+    store.deleteTransaction(value, groupId);
+    try { await ctx.editMessageText('🗑 Transaction deleted.'); } catch (_) {}
+    await ctx.answerCallbackQuery({ text: 'Deleted.' });
+    return true;
+  }
+
+  if (action === 'cx') {
+    try { await ctx.deleteMessage(); } catch (_) {}
+    await ctx.answerCallbackQuery({ text: 'Cancelled.' });
+    return true;
+  }
+
+  return false;
 }
 
 // ── /resetall ────────────────────────────────────────────────────────────────
@@ -367,7 +376,7 @@ async function handleResetAll(ctx) {
 }
 
 module.exports = {
-  handleHelp, handleBalances, handleSummary,
+  handleStart, handleHelp, handleBalances, handleSummary,
   handlePaid, handleGot, handleSplit,
-  handleHistory, handleDelete, handleResetAll,
+  handleHistory, handleDelete, handleDeleteCallback, handleResetAll,
 };

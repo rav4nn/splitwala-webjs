@@ -43,4 +43,15 @@ function lookupByName(chatId, text) {
   return null;
 }
 
-module.exports = { recordMember, listMembers, lookupByUsername, lookupByName };
+function getKnownMembers(chatId) {
+  return [...getMembers(chatId).entries()]
+    .map(([userId, v]) => ({
+      userId,
+      username: v.username,
+      firstName: (v.name || '').split(' ')[0] || v.username || `…${userId.slice(-4)}`,
+      name: v.name,
+    }))
+    .sort((a, b) => a.firstName.localeCompare(b.firstName));
+}
+
+module.exports = { recordMember, listMembers, lookupByUsername, lookupByName, getKnownMembers };
