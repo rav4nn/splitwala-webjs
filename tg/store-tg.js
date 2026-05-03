@@ -138,11 +138,20 @@ function deleteTransaction(txId, groupId) {
 
 function resetAllGroupData(groupId) { db.resetGroup(groupId); }
 
+// Called the first time a user sends a message so we can unify any balance
+// entries stored under their @username key with their real Telegram userId.
+function migrateUsernameToId(usernameKey, realId) {
+  try { db.migrateUserId(usernameKey, realId); } catch (e) {
+    console.error('[store-tg] migrateUsernameToId failed:', e.message);
+  }
+}
+
 module.exports = {
   registerName, getName,
   updateBalance, getNetBetween, getParticipants, getOverallNet,
   getSimplifiedBalances, getBalanceSummary,
   addTransaction, recordSettlement,
   getGroupTransactions, deleteTransaction, resetAllGroupData,
+  migrateUsernameToId,
   formatCurrency,
 };

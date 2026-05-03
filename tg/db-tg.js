@@ -85,6 +85,18 @@ db.exec(`
 const stmts = {
   upsertUser:        db.prepare(`INSERT OR REPLACE INTO users(user_id, name) VALUES(?, ?)`),
   getUser:           db.prepare(`SELECT name FROM users WHERE user_id = ?`),
+  // migration: merge @username key → real userId across all tables
+  migBalDebtor:      db.prepare(`INSERT INTO balances(group_id,debtor,creditor,amount) SELECT group_id,?,creditor,amount FROM balances WHERE debtor=? ON CONFLICT(group_id,debtor,creditor) DO UPDATE SET amount=balances.amount+excluded.amount`),
+  migBalCreditor:    db.prepare(`INSERT INTO balances(group_id,debtor,creditor,amount) SELECT group_id,debtor,?,amount FROM balances WHERE creditor=? ON CONFLICT(group_id,debtor,creditor) DO UPDATE SET amount=balances.amount+excluded.amount`),
+  delBalDebtor:      db.prepare(`DELETE FROM balances WHERE debtor=?`),
+  delBalCreditor:    db.prepare(`DELETE FROM balances WHERE creditor=?`),
+  migContrib:        db.prepare(`UPDATE OR IGNORE contributions SET phone=? WHERE phone=?`),
+  migLiab:           db.prepare(`UPDATE OR IGNORE liabilities   SET phone=? WHERE phone=?`),
+  migPartic:         db.prepare(`UPDATE OR IGNORE tx_participants SET phone=? WHERE phone=?`),
+  migDeltaD:         db.prepare(`UPDATE OR IGNORE balance_deltas SET debtor=?   WHERE debtor=?`),
+  migDeltaC:         db.prepare(`UPDATE OR IGNORE balance_deltas SET creditor=? WHERE creditor=?`),
+  migSettleF:        db.prepare(`UPDATE OR IGNORE settlements SET from_phone=? WHERE from_phone=?`),
+  migSettleT:        db.prepare(`UPDATE OR IGNORE settlements SET to_phone=?   WHERE to_phone=?`),
   insertTx:          db.prepare(`INSERT OR IGNORE INTO transactions(id, group_id, type, amount, label, timestamp, message_id) VALUES(?,?,?,?,?,?,?)`),
   getTx:             db.prepare(`SELECT * FROM transactions WHERE id = ?`),
   groupTxs:          db.prepare(`SELECT * FROM transactions WHERE group_id = ? ORDER BY timestamp ASC`),
@@ -154,10 +166,34 @@ const resetGroup = db.transaction(gid => {
   stmts.deleteGroupBal.run(gid);
 });
 
+// Migrate all records stored under @username key to the real numeric userId.
+// Runs once when the user first sends a message and the bot learns their real ID.
+const migrateUserId = db.transaction((oldKey, newId) => {
+  if (oldKey === newId) return;
+  // balances: merge amounts if a row already exists for newId (safe sum)
+  stmts.migBalDebtor.run(newId, oldKey);
+  stmts.delBalDebtor.run(oldKey);
+  stmts.migBalCreditor.run(newId, oldKey);
+  stmts.delBalCreditor.run(oldKey);
+  // per-transaction tables: conflicts won't happen (can't be in same tx twice)
+  stmts.migContrib.run(newId, oldKey);
+  stmts.migLiab.run(newId, oldKey);
+  stmts.migPartic.run(newId, oldKey);
+  stmts.migDeltaD.run(newId, oldKey);
+  stmts.migDeltaC.run(newId, oldKey);
+  stmts.migSettleF.run(newId, oldKey);
+  stmts.migSettleT.run(newId, oldKey);
+  // carry over display name if real ID doesn't have one yet
+  if (!stmts.getUser.get(newId)) {
+    const old = stmts.getUser.get(oldKey);
+    if (old) stmts.upsertUser.run(newId, old.name);
+  }
+});
+
 module.exports = {
   setUserName, getUserName,
   writeTransaction, getTransaction, getGroupTransactions, removeTransaction,
   getBalanceAmount, setBalance, getGroupBalances,
-  resetGroup,
+  resetGroup, migrateUserId,
   _db: db,
 };

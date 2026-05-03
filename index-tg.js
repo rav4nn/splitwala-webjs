@@ -12,7 +12,12 @@ require('./tg/db-tg');           // initialise SQLite first
 
 const handlers = require('./handlers-tg');
 const memberCache = require('./tg/member-cache');
+const store = require('./tg/store-tg');
 const { handleSplitCallback, handleWizardText } = require('./tg/split-wizard');
+
+// Track which @username keys have already been migrated this session.
+// On restart the migration re-runs harmlessly (0 rows if already done).
+const migratedUsernames = new Set();
 
 // ── Process-level safety nets ───────────────────────────────────────────────
 process.on('unhandledRejection', (reason) => console.error('[unhandledRejection]', reason));
@@ -43,7 +48,17 @@ function notifyFail(msg) {
 
 // ── Always pollinate the member cache from any incoming update ──────────────
 bot.use(async (ctx, next) => {
-  if (ctx.chat?.id && ctx.from) memberCache.recordMember(ctx.chat.id, ctx.from);
+  if (ctx.chat?.id && ctx.from) {
+    memberCache.recordMember(ctx.chat.id, ctx.from);
+    // First time we see this user's real ID: migrate any @username ledger entries
+    if (ctx.from.username) {
+      const key = `@${ctx.from.username.toLowerCase()}`;
+      if (!migratedUsernames.has(key)) {
+        migratedUsernames.add(key);
+        store.migrateUsernameToId(key, String(ctx.from.id));
+      }
+    }
+  }
   if (ctx.message?.reply_to_message?.from)
     memberCache.recordMember(ctx.chat.id, ctx.message.reply_to_message.from);
   for (const e of (ctx.message?.entities || [])) {
