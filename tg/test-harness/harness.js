@@ -22,6 +22,8 @@ class Harness {
 
   async send(text) {
     await this.client.sendMessage(text);
+    // Small delay to avoid Telegram flood control and let the bot start processing.
+    await new Promise(r => setTimeout(r, 400));
   }
 
   async expectReply(matcher = {}, opts = {}) {
@@ -74,50 +76,62 @@ class Harness {
   // expected: 'inline' | 'plain-username' | 'text'
   // 'inline'        → MessageEntityMentionName entity (tg://user?id= link)
   // 'plain-username'→ MessageEntityMention entity (plain @username text)
-  // 'text'          → no entity at all
+  // 'text'          → name appears with no entity at all
+  //
+  // Each assertion is scoped to ONE user — entities for OTHER users in the
+  // same message are ignored.
   assertMentionRendersAs(message, username, expected) {
     const text     = message.message || '';
     const entities = message.entities || [];
     const needle   = username.replace('@', '').toLowerCase();
     const isSelf   = needle === (process.env.TEST_SENDER || '').toLowerCase();
 
-    for (const e of entities) {
-      const span = text.slice(e.offset, e.offset + e.length);
-      const type = e.className || e.constructor?.name || '';
+    const plainMention = entities.find(e =>
+      (e.className || '') === 'MessageEntityMention' &&
+      text.slice(e.offset, e.offset + e.length).toLowerCase().replace('@', '') === needle,
+    );
 
-      if (type === 'MessageEntityMentionName') {
-        // Inline tg://user?id= link.
-        // For self: verify userId matches our own ID.
-        // For others: any MentionName in the message body is treated as a match
-        // (our test setup ensures only the sender has a known ID).
-        if (isSelf && this.client.myUserId && String(e.userId) !== this.client.myUserId) continue;
-        if (expected === 'inline') return;
-        throw new AssertionError(
-          `[${this._currentStep}] @${username}: expected "${expected}" but rendered as inline (tg://user?id=${e.userId})`,
-          { step: this._currentStep, entityType: type, userId: e.userId },
-        );
-      }
+    const selfInline = isSelf && this.client.myUserId
+      ? entities.find(e =>
+          (e.className || '') === 'MessageEntityMentionName' &&
+          String(e.userId) === this.client.myUserId,
+        )
+      : null;
 
-      if (type === 'MessageEntityMention') {
-        // Plain @username auto-link.
-        if (span.toLowerCase().replace('@', '') !== needle) continue;
-        if (expected === 'plain-username') return;
-        throw new AssertionError(
-          `[${this._currentStep}] @${username}: expected "${expected}" but rendered as plain-username`,
-          { step: this._currentStep, entityType: type, span },
-        );
+    if (expected === 'inline') {
+      if (selfInline) return;
+      // For non-self 'inline' we don't know userId; we accept the absence of a
+      // plain-mention as a strong signal that the user is rendered some other way.
+      // (This branch isn't exercised by current scenarios.)
+      if (!isSelf && entities.some(e => (e.className || '') === 'MessageEntityMentionName') && !plainMention) {
+        return;
       }
+      throw new AssertionError(
+        `[${this._currentStep}] @${username}: expected "inline" but no matching MentionName entity. ` +
+        `Plain @${username}? ${!!plainMention}`,
+        { step: this._currentStep },
+      );
     }
 
-    if (expected === 'text') return;
-    const entitySummary = entities.map(e => ({
-      type: e.className,
-      span: text.slice(e.offset, e.offset + e.length),
-    }));
+    if (expected === 'plain-username') {
+      if (plainMention) return;
+      throw new AssertionError(
+        `[${this._currentStep}] @${username}: expected "plain-username" but no MessageEntityMention found for @${username}`,
+        { step: this._currentStep },
+      );
+    }
+
+    if (expected === 'text') {
+      if (!plainMention && !selfInline) return;
+      throw new AssertionError(
+        `[${this._currentStep}] @${username}: expected "text" but found a mention entity`,
+        { step: this._currentStep },
+      );
+    }
+
     throw new AssertionError(
-      `[${this._currentStep}] @${username}: expected "${expected}" but found no matching entity.\n` +
-      `Message: "${text}"\nEntities: ${JSON.stringify(entitySummary)}`,
-      { step: this._currentStep, entitySummary },
+      `[${this._currentStep}] @${username}: unknown expected value "${expected}"`,
+      { step: this._currentStep },
     );
   }
 

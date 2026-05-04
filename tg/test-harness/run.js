@@ -75,6 +75,11 @@ async function main() {
   console.log(`[run] Running ${scenarios.length} scenario(s)\n`);
 
   for (const scenario of scenarios) {
+    // Drain any leftover messages from the previous scenario, then pause
+    // briefly to let Telegram's per-user rate limit recover.
+    client.drainQueue();
+    await new Promise(r => setTimeout(r, 1500));
+
     const h = new Harness(client, { timeout: timeoutMs });
     reporter.beginScenario(scenario.id, scenario.name);
     process.stdout.write(`  ${scenario.name}… `);
@@ -105,5 +110,6 @@ async function main() {
 
 main().catch(err => {
   console.error('[run] Fatal:', err.message);
+  if (process.env.HARNESS_DEBUG) console.error(err.stack);
   process.exit(1);
 });

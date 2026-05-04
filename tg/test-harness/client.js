@@ -3,7 +3,7 @@
 const { TelegramClient, Api } = require('telegram');
 const { StringSession } = require('telegram/sessions');
 const { ConnectionTCPAbridged } = require('telegram/network');
-const { Raw } = require('telegram/events');
+const { Raw, NewMessage, EditedMessage } = require('telegram/events');
 
 class TGClient {
   constructor({ apiId, apiHash, sessionString, botUsername, chatId }) {
@@ -20,28 +20,33 @@ class TGClient {
     });
     this._queue   = [];
     this._waiters = [];
+    this._seenIds = new Set();
   }
 
   async connect() {
-    await this.client.start({
-      phoneNumber: () => { throw new Error('No session. Run login.js first.'); },
-      phoneCode:   () => { throw new Error('No session. Run login.js first.'); },
-      password:    () => { throw new Error('No session. Run login.js first.'); },
-      onError:     err => console.error('[TGClient]', err.message),
-    });
+    await this.client.connect();
 
-    const me        = await this.client.getMe();
+    const me = await this.client.getMe().catch(() => null);
+    if (!me) {
+      throw new Error('Session invalid or expired. Re-run login.js to generate a new TG_USER_SESSION.');
+    }
     this.myUserId   = String(me.id);
-
     const botEntity = await this.client.getEntity(this.botUsername);
     this.botId      = String(botEntity.id);
 
-    this.client.addEventHandler(this._onRaw.bind(this), new Raw());
+    this.client.addEventHandler(this._onNewMessage.bind(this), new NewMessage({}));
+    if (typeof EditedMessage === 'function') {
+      this.client.addEventHandler(this._onNewMessage.bind(this), new EditedMessage({}));
+    }
+    this.client.addEventHandler(this._onRaw.bind(this), new Raw({}));
     console.log(`[TGClient] connected as ${me.username || me.id}, watching bot ${this.botUsername} (${this.botId})`);
   }
 
   _normId(id) {
-    return String(id).replace(/^-100/, '');
+    const s = String(id).replace(/^-/, '');
+    // Supergroup IDs are -100<n> in chat IDs but <n> in peer.channelId.
+    if (s.startsWith('100') && s.length >= 13) return s.slice(3);
+    return s;
   }
 
   _isFromBot(msg) {
@@ -56,6 +61,17 @@ class TGClient {
   }
 
   _dispatch(msg) {
+    // Dedupe: NewMessage and EditedMessage handlers can both fire for the same event.
+    // Track by (id + edit_date) so a real edit (different edit_date) is treated as new.
+    const key = `${msg.id}:${msg.editDate || 0}`;
+    if (this._seenIds.has(key)) return;
+    this._seenIds.add(key);
+    if (this._seenIds.size > 200) {
+      // Trim — keep the set small.
+      const arr = [...this._seenIds];
+      this._seenIds = new Set(arr.slice(-100));
+    }
+
     for (let i = 0; i < this._waiters.length; i++) {
       if (this._waiters[i].predicate(msg)) {
         const [w] = this._waiters.splice(i, 1);
@@ -64,6 +80,17 @@ class TGClient {
       }
     }
     this._queue.push(msg);
+  }
+
+  _onNewMessage(event) {
+    const msg = event.message;
+    if (!msg) return;
+    if (!this._isFromBot(msg)) return;
+    if (!this._isInGroup(msg)) return;
+    if (process.env.HARNESS_DEBUG) {
+      console.error(`[NewMsg] "${(msg.message || '').slice(0, 60)}"`);
+    }
+    this._dispatch(msg);
   }
 
   _onRaw(update) {
@@ -101,6 +128,13 @@ class TGClient {
 
   async sendMessage(text) {
     await this.client.sendMessage(this.chatId, { message: text });
+  }
+
+  // Drop any messages in the queue. Called between scenarios to prevent
+  // stale bot messages from one scenario polluting the next.
+  drainQueue() {
+    this._queue = [];
+    this._seenIds = new Set();
   }
 
   async clickInlineButton(message, matcher) {

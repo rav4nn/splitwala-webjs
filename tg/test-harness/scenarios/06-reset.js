@@ -7,7 +7,10 @@ exports.id   = '06-reset';
 exports.name = 'Reset all data';
 
 exports.run = async (h) => {
-  // Create some data first
+  // Start clean
+  await h.reset();
+
+  // Create some data
   h.step('split-setup');
   await h.send(`/split 500 @${p1}`);
   await confirmSplit(h);
