@@ -13,6 +13,9 @@ class TGClient {
     this.session     = new StringSession(sessionString || '');
     this.client      = new TelegramClient(this.session, Number(apiId), apiHash, {
       connectionRetries: 5,
+      useWSS:           true,
+      requestRetries:   5,
+      timeout:          30,
     });
     this._queue   = [];
     this._waiters = [];

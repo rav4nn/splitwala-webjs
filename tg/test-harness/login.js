@@ -22,7 +22,10 @@ if (!apiId || !apiHash) {
 
 (async () => {
   const client = new TelegramClient(new StringSession(''), apiId, apiHash, {
-    connectionRetries: 3,
+    connectionRetries: 5,
+    useWSS:           true,
+    requestRetries:   5,
+    timeout:          30,
   });
 
   await client.start({
