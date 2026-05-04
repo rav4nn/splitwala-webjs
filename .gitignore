@@ -17,3 +17,7 @@ logs/
 
 # Sprint planning notes — local to the developer, not committed
 sprints/
+
+# Test harness reports and session (never commit)
+tg/test-harness/report.json
+tg/test-harness/report.md
