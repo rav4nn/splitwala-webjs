@@ -7,8 +7,9 @@
 const cache = new Map();
 
 function getMembers(chatId) {
-  if (!cache.has(chatId)) cache.set(chatId, new Map());
-  return cache.get(chatId);
+  const key = String(chatId);
+  if (!cache.has(key)) cache.set(key, new Map());
+  return cache.get(key);
 }
 
 function recordMember(chatId, user) {
