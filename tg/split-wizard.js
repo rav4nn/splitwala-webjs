@@ -9,8 +9,6 @@ const { generateId, formatCurrency } = require('../core/identity');
 // ── Wizard state store ────────────────────────────────────────────────────────
 // Keyed by "chatId:userId" — one active wizard per user per chat.
 
-let nameDebugMode = true; // show all 4 name-format options on next confirm, then revert
-
 const wizards = new Map();
 const WIZARD_TTL = 5 * 60 * 1000; // 5 minutes
 
@@ -354,12 +352,6 @@ async function handleSplitCallback(ctx) {
     await ctx.answerCallbackQuery();
     clearWizard(chatId, senderId);
 
-    // Snapshot DB names before registration so debug option 4 shows pre-existing state
-    const preDbNames = {};
-    for (const uid of [...new Set([...w.participants, w.payer])]) {
-      preDbNames[uid] = store.getName(uid);
-    }
-
     // Register names so future store.getName() works
     for (const m of memberCache.getKnownMembers(chatId)) {
       if (w.participants.includes(m.userId) || m.userId === w.payer) {
@@ -396,41 +388,20 @@ async function handleSplitCallback(ctx) {
       message_id:   String(w.originalMsgId),
     });
 
+    // Render a tg://user inline mention for known numeric IDs; fall back to
+    // @username plain text (Telegram auto-links it) for username-only entries.
+    const allMembers = memberCache.getKnownMembers(chatId);
+    const renderName = (uid) => {
+      if (String(uid).startsWith('@')) return escHtml(String(uid));
+      const m    = allMembers.find(k => k.userId === uid);
+      const name = m ? escHtml(m.name || m.firstName) : escHtml(store.getName(uid));
+      return `<a href="tg://user?id=${uid}">${name}</a>`;
+    };
+
     const labelTxt = w.label ? ` for <b>${escHtml(w.label)}</b>` : '';
-    let result;
-
-    if (nameDebugMode) {
-      nameDebugMode = false;
-      const allMembers = memberCache.getKnownMembers(chatId);
-      const uniqueIds  = [...new Set([w.payer, ...participants])];
-
-      const nameOpts = (uid) => {
-        const m    = allMembers.find(k => k.userId === uid);
-        const fn   = m ? escHtml(m.name || m.firstName) : '<i>(unknown)</i>';
-        const ustr = m && m.username ? `@${escHtml(m.username)}` : '<i>none</i>';
-        const link = `<a href="tg://user?id=${uid}">${fn}</a>`;
-        const db   = escHtml(preDbNames[uid]);
-        return `  1) first_name:  ${fn}\n  2) @username:   ${ustr}\n  3) tg mention:  ${link}\n  4) db/current:  ${db}`;
-      };
-
-      const blocks = uniqueIds.map(uid => {
-        const role = uid === w.payer
-          ? `paid ${formatCurrency(w.amount)}`
-          : `owes ${formatCurrency(share)}`;
-        return `<b>[${role}]</b>\n${nameOpts(uid)}`;
-      });
-
-      result = [
-        `✅ Split recorded${labelTxt} — ${formatCurrency(w.amount)} ÷ ${count} = ${formatCurrency(share)} each`,
-        '',
-        '🔍 <b>Name format preview</b> — reply with 1/2/3/4 to pick:',
-        ...blocks,
-      ].join('\n\n');
-    } else {
-      const payerN = escHtml(store.getName(w.payer));
-      const lines  = participants.map(uid => `• ${escHtml(store.getName(uid))}: ${formatCurrency(share)}`);
-      result = `✅ ${payerN} paid ${formatCurrency(w.amount)}${labelTxt}\nSplit:\n${lines.join('\n')}`;
-    }
+    const payerN   = renderName(w.payer);
+    const lines    = participants.map(uid => `• ${renderName(uid)}: ${formatCurrency(share)}`);
+    const result   = `✅ ${payerN} paid ${formatCurrency(w.amount)}${labelTxt}\nSplit:\n${lines.join('\n')}`;
 
     // Edit confirm message → final result (removes buttons)
     try { await ctx.editMessageText(result, { parse_mode: 'HTML' }); } catch (_) {
