@@ -9,6 +9,7 @@ require('dotenv').config({ path: require('path').resolve(__dirname, '../../.env'
 
 const { TelegramClient } = require('telegram');
 const { StringSession }  = require('telegram/sessions');
+const { ConnectionTCPAbridged } = require('telegram/network');
 const input              = require('input');
 
 const apiId   = Number(process.env.TG_API_ID);
@@ -22,10 +23,10 @@ if (!apiId || !apiHash) {
 
 (async () => {
   const client = new TelegramClient(new StringSession(''), apiId, apiHash, {
+    connection:        ConnectionTCPAbridged,
     connectionRetries: 5,
-    useWSS:           true,
-    requestRetries:   5,
-    timeout:          30,
+    requestRetries:    5,
+    timeout:           30,
   });
 
   await client.start({

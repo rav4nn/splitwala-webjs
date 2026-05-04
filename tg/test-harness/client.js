@@ -2,6 +2,7 @@
 
 const { TelegramClient, Api } = require('telegram');
 const { StringSession } = require('telegram/sessions');
+const { ConnectionTCPAbridged } = require('telegram/network');
 const { Raw } = require('telegram/events');
 
 class TGClient {
@@ -12,10 +13,10 @@ class TGClient {
     this.myUserId    = null;
     this.session     = new StringSession(sessionString || '');
     this.client      = new TelegramClient(this.session, Number(apiId), apiHash, {
+      connection:        ConnectionTCPAbridged,
       connectionRetries: 5,
-      useWSS:           true,
-      requestRetries:   5,
-      timeout:          30,
+      requestRetries:    5,
+      timeout:           30,
     });
     this._queue   = [];
     this._waiters = [];
