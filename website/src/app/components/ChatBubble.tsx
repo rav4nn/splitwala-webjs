@@ -44,7 +44,7 @@ export default function ChatBubble({ messages, className = '' }: ChatBubbleProps
               {msg.name && (
                 <div className="text-[#7DD3FC] text-xs font-semibold mb-0.5">{msg.name}</div>
               )}
-              <span className={msg.isCommand ? 'text-[#7DD3FC]' : ''}>{msg.text}</span>
+              <span className={`tabular-nums ${msg.isCommand ? 'text-[#7DD3FC]' : ''}`}>{msg.text}</span>
             </div>
           </div>
         ))}

@@ -8,8 +8,8 @@ interface CTAButtonProps {
 export default function CTAButton({ size = 'md', className = '' }: CTAButtonProps) {
   const sizeClasses =
     size === 'lg'
-      ? 'px-8 py-4 text-lg font-bold'
-      : 'px-6 py-3 text-base font-semibold';
+      ? 'pl-7 pr-8 py-4 text-lg font-bold'
+      : 'pl-5 pr-6 py-3 text-base font-semibold';
 
   return (
     <a
@@ -20,10 +20,10 @@ export default function CTAButton({ size = 'md', className = '' }: CTAButtonProp
         inline-flex items-center gap-2.5
         bg-[#2AABEE] hover:bg-[#229ED9]
         text-white rounded-2xl
-        transition-all duration-200
+        transition-[background-color,box-shadow,transform] duration-200 ease-out
         hover:shadow-[0_8px_32px_0_rgba(42,171,238,0.35)]
         hover:-translate-y-0.5
-        active:translate-y-0
+        active:scale-[0.96] active:translate-y-0
         ${sizeClasses} ${className}
       `}
     >

@@ -41,7 +41,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${jakarta.variable} ${jetbrains.variable}`}>
+    <html lang="en" className={`${jakarta.variable} ${jetbrains.variable} antialiased`}>
       <body>{children}</body>
     </html>
   );

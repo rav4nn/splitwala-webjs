@@ -19,7 +19,7 @@ export default function WhySplitWala() {
           {reasons.map((reason, i) => (
             <div
               key={reason.title}
-              className="bg-white rounded-2xl p-6 shadow-[0_2px_12px_0_rgba(0,0,0,0.07)] hover:shadow-[0_8px_32px_0_rgba(42,171,238,0.15)] hover:-translate-y-1 transition-all duration-300 animate-fade-in-up"
+              className="bg-white rounded-2xl p-6 shadow-[0_2px_12px_0_rgba(0,0,0,0.07)] hover:shadow-[0_8px_32px_0_rgba(42,171,238,0.15)] hover:-translate-y-1 transition-[box-shadow,transform] duration-300 animate-fade-in-up"
               style={{ animationDelay: `${i * 75}ms` }}
             >
               <div className="text-3xl mb-4">{reason.emoji}</div>

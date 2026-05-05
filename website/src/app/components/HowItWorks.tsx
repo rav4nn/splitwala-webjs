@@ -44,7 +44,7 @@ export default function HowItWorks() {
           {steps.map((step, i) => (
             <div
               key={step.number}
-              className="bg-white rounded-2xl p-7 shadow-[0_2px_12px_0_rgba(0,0,0,0.07)] hover:shadow-[0_8px_32px_0_rgba(42,171,238,0.15)] transition-shadow duration-300 animate-fade-in-up"
+              className="bg-white rounded-2xl p-7 shadow-[0_2px_12px_0_rgba(0,0,0,0.07)] hover:shadow-[0_8px_32px_0_rgba(42,171,238,0.15)] transition-[box-shadow] duration-300 animate-fade-in-up"
               style={{ animationDelay: `${i * 100}ms` }}
             >
               <div className="flex items-start gap-4 mb-5">

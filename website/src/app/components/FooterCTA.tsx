@@ -4,10 +4,10 @@ export default function FooterCTA() {
   return (
     <section className="py-24 px-4 sm:px-6 bg-gradient-to-br from-[#1A2A3A] to-[#0D1B2A]">
       <div className="max-w-2xl mx-auto text-center space-y-6">
-        <h2 className="text-4xl sm:text-5xl font-extrabold text-white tracking-tight">
+        <h2 className="text-4xl sm:text-5xl font-extrabold text-white tracking-tight text-balance">
           Ready to split in peace?
         </h2>
-        <p className="text-lg text-white/60">
+        <p className="text-lg text-white/60 text-pretty">
           Free forever. Add @splitwala_bot to your Telegram group and never argue about who owes what again.
         </p>
         <CTAButton size="lg" />
