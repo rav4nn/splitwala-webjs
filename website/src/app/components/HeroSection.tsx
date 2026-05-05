@@ -34,8 +34,8 @@ export default function HeroSection() {
               </a>
             </div>
           </div>
-          <div className="animate-fade-in-up delay-200 lg:pl-6">
-            <ChatBubble messages={heroMessages} />
+          <div className="animate-fade-in-up delay-200 lg:pl-6 w-full">
+            <ChatBubble messages={heroMessages} className="w-full" />
           </div>
         </div>
       </div>

@@ -9,7 +9,7 @@ export default function ScreenshotSlot({
   aspectRatio = 'phone',
   className = '',
 }: ScreenshotSlotProps) {
-  const aspectClass = aspectRatio === 'phone' ? 'aspect-[9/16] max-w-[280px]' : 'aspect-[16/9]';
+  const aspectClass = aspectRatio === 'phone' ? 'aspect-[9/16] max-w-[280px] max-h-[400px]' : 'aspect-[16/9]';
 
   return (
     <div
