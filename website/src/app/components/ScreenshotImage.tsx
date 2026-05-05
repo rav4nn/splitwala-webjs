@@ -27,11 +27,13 @@ export default function ScreenshotImage({ src, alt }: ScreenshotImageProps) {
   }
 
   return (
-    <img
-      src={src}
-      alt={alt}
-      className="w-full h-auto rounded-2xl shadow-[0_25px_60px_rgba(0,0,0,0.18)] outline outline-1 -outline-offset-1 outline-black/10"
-      onError={() => setFailed(true)}
-    />
+    <div className="rounded-[28px] overflow-hidden shadow-[0_25px_60px_rgba(0,0,0,0.22)] bg-[#1A2332]">
+      <img
+        src={src}
+        alt={alt}
+        className="w-full h-auto block"
+        onError={() => setFailed(true)}
+      />
+    </div>
   );
 }
