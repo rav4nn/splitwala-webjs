@@ -1,42 +1,76 @@
-import ScreenshotImage from './ScreenshotImage';
+import StaticPhoneDemo from './StaticPhoneDemo';
 
-// Drop your screenshots into website/public/screenshots/ with these exact filenames:
-// tg-split.png, tg-summary.png, tg-paid.png, tg-history.png, tg-mention.png
 const features = [
   {
     title: 'Natural language splits',
     description: 'Type expenses the way you think them. Simple equal splits or complex custom amounts — the bot handles both.',
-    command: '/split 4000 by me 3000 by @vipul 1000, @vipul owes 2500, @mohit owes 1500 for groceries',
     label: '/split wizard in action',
-    screenshot: '/screenshots/tg-split.png',
+    userMsg: '/split dinner 2100 @rav4nnn 700\n@vipulbhav 900 @metasmic 500',
+    botMsg:
+`┌ Expense Added — dinner
+│
+│  ₹2100.00 paid by ravan
+│
+│  ravan       ₹700.00
+│  @vipulbhav  ₹700.00
+│  @metasmic   ₹700.00
+│
+└ /balances to check totals`,
   },
   {
     title: 'Simplify debts — always on',
     description: 'The bot always shows the minimum number of payments needed to settle the group. No settings, no toggles. Just clarity.',
-    command: '/summary',
     label: 'Settle with minimum transfers',
-    screenshot: '/screenshots/tg-summary.png',
+    userMsg: '/summary',
+    botMsg:
+`┌ Settlement Summary
+│
+│  @vipulbhav → ravan  ₹900.00
+│  @metasmic → ravan   ₹500.00
+│
+└ Minimum transfers to settle up`,
   },
   {
     title: 'Settlements in one line',
     description: 'Once someone pays back, record it instantly. Balances update automatically and everyone can see.',
-    command: '/paid 200 to @mohit',
     label: 'Clear balances as you go',
-    screenshot: '/screenshots/tg-paid.png',
+    userMsg: '/paid 700 to @vipulbhav',
+    botMsg:
+`┌ Payment Recorded
+│
+│  ravan → @vipulbhav  ₹700.00
+│
+└ /balances to check totals`,
   },
   {
     title: 'History and undo',
     description: 'Check recent transactions, filter by person, or delete a mistake. Balance reversal is automatic.',
-    command: '/history 10 @mohit',
     label: 'Full audit trail',
-    screenshot: '/screenshots/tg-history.png',
+    userMsg: '/history 10',
+    botMsg:
+`┌ History
+│
+│  1. ravan → @vipulbhav  ₹700  05/05
+│  2. ravan paid ₹2400  groceries  05/05
+│  3. ravan paid ₹2100  dinner  05/05
+│
+└ /delete N to remove one`,
   },
   {
     title: 'Tags mean accuracy',
     description: "The bot requires @mentions or inline Telegram tags. This is intentional — explicit beats guessed every time. Works with @usernames or Telegram's built-in mention.",
-    command: '/split rent 30000 between @me @priya @arjun',
     label: 'No ambiguity, ever',
-    screenshot: '/screenshots/tg-mention.png',
+    userMsg: '/split rent 9000 between\n@rav4nnn @vipulbhav @metasmic',
+    botMsg:
+`┌ Expense Added — rent
+│
+│  ₹9000.00 paid by ravan
+│
+│  ravan       ₹3000.00
+│  @vipulbhav  ₹3000.00
+│  @metasmic   ₹3000.00
+│
+└ /balances to check totals`,
   },
 ];
 
@@ -64,12 +98,9 @@ export default function FeaturesSection() {
                 </div>
                 <h3 className="text-2xl font-extrabold text-[#1A1A1A]">{feature.title}</h3>
                 <p className="text-[#6B7280] leading-relaxed text-lg">{feature.description}</p>
-                <code className="block bg-[#F7F8FA] text-[#2AABEE] rounded-xl px-4 py-3 text-sm font-mono break-all border border-[#2AABEE]/10">
-                  {feature.command}
-                </code>
               </div>
-              <div className="w-full max-w-[300px] mx-auto">
-                <ScreenshotImage src={feature.screenshot} alt={feature.title} />
+              <div className="flex justify-center">
+                <StaticPhoneDemo userMsg={feature.userMsg} botMsg={feature.botMsg} />
               </div>
             </div>
           ))}

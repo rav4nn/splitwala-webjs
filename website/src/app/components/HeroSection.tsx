@@ -1,10 +1,5 @@
 import CTAButton from './CTAButton';
-import ChatBubble from './ChatBubble';
-
-const heroMessages = [
-  { sender: 'user' as const, name: 'You', text: '/split dinner 500 between @me @mohit @vipul', isCommand: true },
-  { sender: 'bot' as const, text: '✅ Split recorded! ₹167 each.\n\n@me owes ₹0 (you paid)\n@mohit owes ₹167\n@vipul owes ₹167' },
-];
+import PhoneChatDemo from './PhoneChatDemo';
 
 export default function HeroSection() {
   return (
@@ -34,8 +29,8 @@ export default function HeroSection() {
               </a>
             </div>
           </div>
-          <div className="animate-fade-in-up delay-200 lg:pl-6 w-full">
-            <ChatBubble messages={heroMessages} className="w-full" />
+          <div className="animate-fade-in-up delay-200 lg:pl-6 flex justify-center">
+            <PhoneChatDemo />
           </div>
         </div>
       </div>

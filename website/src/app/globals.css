@@ -69,4 +69,22 @@
   .delay-300 { animation-delay: 300ms; }
   .delay-400 { animation-delay: 400ms; }
   .delay-500 { animation-delay: 500ms; }
+
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .animate-slide-up {
+    animation: slideUp 0.32s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  }
+
+  @keyframes typingPulse {
+    0%, 100% { transform: translateY(0);    opacity: 0.35; }
+    50%       { transform: translateY(-4px); opacity: 0.9;  }
+  }
+
+  .animate-typing-dot {
+    animation: typingPulse 1.1s ease-in-out infinite;
+  }
 }
