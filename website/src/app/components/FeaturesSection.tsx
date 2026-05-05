@@ -5,15 +5,15 @@ const features = [
     title: 'Natural language splits',
     description: 'Type expenses the way you think them. Simple equal splits or complex custom amounts — the bot handles both.',
     label: '/split wizard in action',
-    userMsg: '/split dinner 2100 @rav4nnn 700\n@vipulbhav 900 @metasmic 500',
+    userMsg: '/split dinner 2100 @hardeep 700\n@vipul 900 @mohit 500',
     botMsg:
 `┌ Expense Added — dinner
 │
-│  ₹2100.00 paid by ravan
+│  ₹2100.00 paid by hardeep
 │
-│  ravan       ₹700.00
-│  @vipulbhav  ₹700.00
-│  @metasmic   ₹700.00
+│  hardeep  ₹700.00
+│  @vipul   ₹700.00
+│  @mohit   ₹700.00
 │
 └ /balances to check totals`,
   },
@@ -25,8 +25,8 @@ const features = [
     botMsg:
 `┌ Settlement Summary
 │
-│  @vipulbhav → ravan  ₹900.00
-│  @metasmic → ravan   ₹500.00
+│  @vipul → hardeep  ₹900.00
+│  @mohit → hardeep  ₹500.00
 │
 └ Minimum transfers to settle up`,
   },
@@ -34,11 +34,11 @@ const features = [
     title: 'Settlements in one line',
     description: 'Once someone pays back, record it instantly. Balances update automatically and everyone can see.',
     label: 'Clear balances as you go',
-    userMsg: '/paid 700 to @vipulbhav',
+    userMsg: '/paid 700 to @vipul',
     botMsg:
 `┌ Payment Recorded
 │
-│  ravan → @vipulbhav  ₹700.00
+│  hardeep → @vipul  ₹700.00
 │
 └ /balances to check totals`,
   },
@@ -50,9 +50,9 @@ const features = [
     botMsg:
 `┌ History
 │
-│  1. ravan → @vipulbhav  ₹700
-│  2. ravan paid ₹2400  groceries
-│  3. ravan paid ₹2100  dinner
+│  1. hardeep → @vipul  ₹700
+│  2. hardeep paid ₹2400  groceries
+│  3. hardeep paid ₹2100  dinner
 │
 └ /delete N to remove one`,
   },
@@ -60,15 +60,15 @@ const features = [
     title: 'Tags mean accuracy',
     description: "The bot requires @mentions or inline Telegram tags. This is intentional — explicit beats guessed every time. Works with @usernames or Telegram's built-in mention.",
     label: 'No ambiguity, ever',
-    userMsg: '/split rent 9000 between\n@rav4nnn @vipulbhav @metasmic',
+    userMsg: '/split rent 9000 between\n@hardeep @vipul @mohit',
     botMsg:
 `┌ Expense Added — rent
 │
-│  ₹9000.00 paid by ravan
+│  ₹9000.00 paid by hardeep
 │
-│  ravan       ₹3000.00
-│  @vipulbhav  ₹3000.00
-│  @metasmic   ₹3000.00
+│  hardeep  ₹3000.00
+│  @vipul   ₹3000.00
+│  @mohit   ₹3000.00
 │
 └ /balances to check totals`,
   },

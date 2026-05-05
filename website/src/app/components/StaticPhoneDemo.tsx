@@ -5,11 +5,13 @@ interface StaticPhoneDemoProps {
   botMsg: string;
 }
 
+const SYSTEM_FONT = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+
 function colorize(text: string): React.ReactNode {
   return text.split('\n').map((line, i, arr) => (
     <React.Fragment key={i}>
-      {line.split(/(@\w+|\/\w+|\bravan\b)/g).map((part, j) =>
-        part.startsWith('@') || part.startsWith('/') || part === 'ravan' ? (
+      {line.split(/(@\w+|\/\w+|\bhardeep\b)/g).map((part, j) =>
+        part.startsWith('@') || part.startsWith('/') || part === 'hardeep' ? (
           <span key={j} className="text-[#4FC3F7]">{part}</span>
         ) : (
           <React.Fragment key={j}>{part}</React.Fragment>
@@ -24,7 +26,6 @@ export default function StaticPhoneDemo({ userMsg, botMsg }: StaticPhoneDemoProp
   return (
     <div className="relative mx-auto select-none" style={{ width: '300px' }}>
       <div className="relative bg-[#1C1C1E] rounded-[44px] shadow-[0_32px_64px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.1),inset_0_0_0_1px_rgba(255,255,255,0.04)] p-[11px]">
-        {/* Buttons */}
         <div className="absolute right-[-3px] top-24 w-[3px] h-14 bg-[#2A2A2C] rounded-r-sm" />
         <div className="absolute left-[-3px] top-16 w-[3px] h-9 bg-[#2A2A2C] rounded-l-sm" />
         <div className="absolute left-[-3px] top-28 w-[3px] h-9 bg-[#2A2A2C] rounded-l-sm" />
@@ -54,17 +55,19 @@ export default function StaticPhoneDemo({ userMsg, botMsg }: StaticPhoneDemoProp
             </div>
           </div>
 
-          {/* Header */}
+          {/* Group header */}
           <div className="flex items-center gap-2 px-2.5 py-2 border-b border-white/[0.07] flex-shrink-0">
             <button className="text-[#2AABEE] p-0.5">
               <svg width="8" height="14" viewBox="0 0 9 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M7.5 1L1 8l6.5 7"/>
               </svg>
             </button>
-            <img src="/splitwala_logo.png" alt="" className="w-7 h-7 rounded-full object-cover flex-shrink-0" />
+            <div className="w-8 h-8 rounded-full bg-[#7B61FF] flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0">
+              FL
+            </div>
             <div className="flex-1 min-w-0">
-              <div className="text-white text-[12px] font-semibold leading-tight">SplitWala Bot</div>
-              <div className="text-[#4FC3F7] text-[10px]">online</div>
+              <div className="text-white text-[13px] font-semibold leading-tight">Flatmates Ltd.</div>
+              <div className="text-[#4FC3F7] text-[10px]">3 members, 1 bot</div>
             </div>
             <div className="flex items-center gap-3 text-[#4FC3F7]">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -80,17 +83,18 @@ export default function StaticPhoneDemo({ userMsg, botMsg }: StaticPhoneDemoProp
           <div className="px-2 py-3 flex flex-col gap-2">
             {/* User message */}
             <div className="flex justify-end">
-              <div className="max-w-[86%] bg-[#2AABEE] text-white rounded-2xl rounded-br-sm px-2.5 py-2">
-                <pre className="whitespace-pre-wrap font-mono text-[10.5px] leading-relaxed">{userMsg}</pre>
+              <div className="max-w-[82%] bg-[#2AABEE] text-white rounded-2xl rounded-br-sm px-2.5 py-2">
+                <pre className="whitespace-pre-wrap text-[11px] leading-relaxed" style={{ fontFamily: SYSTEM_FONT }}>{userMsg}</pre>
                 <div className="text-[8px] text-white/55 text-right mt-0.5">5:15 ✓✓</div>
               </div>
             </div>
 
-            {/* Bot message */}
-            <div className="flex justify-start">
-              <div className="max-w-[92%] bg-[#2A3A4E] text-[#D8E8F5] rounded-2xl rounded-bl-sm px-2.5 py-2">
+            {/* Bot message with avatar */}
+            <div className="flex items-end gap-1.5 justify-start">
+              <img src="/splitwala_logo.png" alt="" className="w-6 h-6 rounded-full object-cover flex-shrink-0 mb-0.5" />
+              <div className="max-w-[84%] bg-[#2A3A4E] text-[#D8E8F5] rounded-2xl rounded-bl-sm px-2.5 py-2">
                 <div className="text-[#F5820A] text-[10px] font-semibold mb-1">Splitwala</div>
-                <pre className="whitespace-pre-wrap font-mono text-[10.5px] leading-relaxed">
+                <pre className="whitespace-pre-wrap text-[11px] leading-relaxed" style={{ fontFamily: SYSTEM_FONT }}>
                   {colorize(botMsg)}
                 </pre>
                 <div className="text-[8px] text-white/30 text-right mt-0.5">5:15</div>
@@ -111,7 +115,6 @@ export default function StaticPhoneDemo({ userMsg, botMsg }: StaticPhoneDemoProp
             </button>
           </div>
 
-          {/* Home indicator */}
           <div className="flex justify-center py-1.5 bg-[#1A2635] flex-shrink-0">
             <div className="w-20 h-[3px] bg-white/20 rounded-full" />
           </div>

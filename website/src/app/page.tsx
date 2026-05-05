@@ -5,6 +5,7 @@ import FeaturesSection from './components/FeaturesSection';
 import WhySplitWala from './components/WhySplitWala';
 import FAQSection from './components/FAQSection';
 import FooterCTA from './components/FooterCTA';
+import CTAButton from './components/CTAButton';
 
 export default function HomePage() {
   return (
@@ -16,6 +17,11 @@ export default function HomePage() {
       <WhySplitWala />
       <FAQSection />
       <FooterCTA />
+
+      {/* Mobile floating CTA — only visible below sm breakpoint */}
+      <div className="sm:hidden fixed bottom-5 left-4 z-50">
+        <CTAButton size="md" />
+      </div>
     </main>
   );
 }
