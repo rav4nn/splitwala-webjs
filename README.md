@@ -1,74 +1,41 @@
 # SplitWala
 
-A WhatsApp bot for splitting expenses and tracking shared balances, built with Node.js and [whatsapp-web.js](https://github.com/pedroslopez/whatsapp-web.js).
+A Telegram bot for splitting expenses and tracking shared balances in group chats. No app to install, no sign-up, no accounts — just add the bot to any Telegram group and start splitting.
 
-Add +918799743633 to your WhatsApp group, **or** add the Telegram bot to a Telegram group, then `/help`.
+**Live bot:** [@splitwala_bot](https://t.me/splitwala_bot) · **Website:** [splitwala.hardeep.cv](https://splitwala.hardeep.cv)
 
-No Meta developer account, no API keys, no webhooks — just scan a QR code once and the bot is live.
+---
 
-## Tech Stack
+## How it works
 
-- **Node.js** (v18+)
-- **whatsapp-web.js** — runs a real WhatsApp Web session
-- **better-sqlite3** — persistent SQLite storage (balances survive restarts)
-- **PM2** — recommended for VPS deployment
+1. Add [@splitwala_bot](https://t.me/splitwala_bot) to any Telegram group
+2. Type `/split 500 dinner` — the bot parses it, confirms, and records it
+3. `/balances` to see who owes what, `/summary` for minimum transfers to settle up
 
-## Telegram Front Door (sprint 2+)
-
-SplitWala can also run as a Telegram bot, sharing all parsing & balance logic with the WhatsApp bot.
-
-### Setup
-
-1. Open Telegram, message `@BotFather`, send `/newbot`, follow the prompts.
-2. Copy the bot token into `.env` as `TELEGRAM_BOT_TOKEN`.
-3. **Disable group privacy mode** so the bot can read `/split` etc. in groups:
-   `@BotFather → /mybots → <your bot> → Bot Settings → Group Privacy → Turn OFF`.
-4. Add the bot to a group as an admin (optional, but lets it read all messages).
-5. `npm run start:tg` (or `pm2 start ecosystem.config.js --only splitwala-tg`).
-
-### Commands
-
-Same as WhatsApp: `/split /balances /paid /got /summary /history /delete /resetall /help`.
-
-### Notes
-
-- WhatsApp and Telegram have **separate balance ledgers** (separate sqlite files). A user with accounts on both transports gets two independent scoreboards.
-- Telegram users without a public `@username` are still resolvable when explicitly tagged via Telegram's reply-style mention.
-- `/split` on Telegram (sprint 2 scope) supports equal splits with optional `for <label>`. Custom contribution syntax (`by`, `between`, "owes") is sprint-3 work.
+---
 
 ## Commands
 
 ### `/split` — Record an expense
 
-```
-/split <amount> [by <person> <amount>] [<person> owes <amount>] [for <description>]
-```
+Type naturally. The bot uses an LLM to parse amount, description, payer, and participants from a single message.
 
 | Example | What it does |
-|---------|-------------|
-| `/split 600` | Splits ₹600 equally among everyone in the group |
-| `/split 600 @Mohit @Vipul and me` | Splits ₹600 equally among only those three people |
-| `/split 600 for dinner` | Same as above but tags the expense "dinner" |
-| `/split 4000 by me 3000 by @Vipul 1000, @Vipul owes 2500, @Mohit owes 1500 for groceries` | Custom contributions and custom debts |
+|---|---|
+| `/split 600` | Splits ₹600 equally among the group |
+| `/split 600 @mohit @vipul and me` | Splits among only those three |
+| `/split 600 dinner` | Splits ₹600 and tags it "dinner" |
+| `/split 4500 groceries paid by @vipul` | Records @vipul as the payer |
 
 ### `/paid` — Record a payment
 
 ```
-/paid <amount> [to/from @person]
+/paid <amount> to @person
+/paid <amount> from @person
+/paid <amount> from @person to @person
 ```
-
-| Example | What it does |
-|---------|-------------|
-| `/paid 200 to @Mohit` | You paid Mohit ₹200 |
-| `/paid 200 from @Mohit` | Mohit paid you ₹200 |
-| `/paid 500 from @Vipul to @Mohit` | Vipul paid Mohit ₹500 directly |
-| `/paid @Mohit to me` | Clear everything Mohit owes you |
 
 ### `/got` — Record money received
-
-```
-/got <amount> from @person
-```
 
 Mirror of `/paid` — use whichever reads more naturally.
 
@@ -76,29 +43,28 @@ Mirror of `/paid` — use whichever reads more naturally.
 
 ```
 /balances
-/balances @Mohit
+/balances @mohit
 ```
 
-### `/summary` — Group scoreboard
+### `/summary` — Minimum transfers to settle up
 
-Shows the minimum set of payments needed to settle all debts in the group.
+Shows the smallest number of payments needed to clear all debts in the group.
 
 ### `/history` — View recent transactions
 
 ```
 /history
 /history 10
-/history @Mohit
-/history 10 @Mohit
+/history @mohit
 ```
 
-Default count is 5, maximum is 20.
+Default: 5 transactions. Max: 20.
 
 ### `/delete` — Remove a transaction
 
 ```
-/delete           → list recent transactions with numbers
-/delete 2         → delete transaction #2 and reverse its balance impact
+/delete           → lists recent transactions with numbers
+/delete 2         → removes #2 and reverses its balance impact
 ```
 
 ### `/resetall` — Wipe all group data
@@ -108,71 +74,63 @@ Default count is 5, maximum is 20.
 /resetall confirm   → permanently clears all transactions and balances
 ```
 
-### `/help` — Show command reference in chat
+### `/help` — Command reference in chat
 
 ---
 
-## Setup
+## Tech stack
 
-### 1. Install Node.js
+- **Node.js** + **grammY** — Telegram bot framework
+- **better-sqlite3** — persistent SQLite storage (balances survive restarts)
+- **DeepSeek API** — LLM-powered natural language split parsing
+- **PM2** — process management for VPS deployment
 
-Download and install Node.js v18 or newer from https://nodejs.org.
+---
 
-### 2. Clone and install dependencies
+## Self-hosting
+
+### 1. Clone and install
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/splitwala-webjs.git
+git clone https://github.com/rav4nn/splitwala-webjs.git
 cd splitwala-webjs
 npm install
 ```
 
-### 3. Start the bot
+### 2. Configure environment
 
-```bash
-npm start
+Create a `.env` file:
+
+```
+TELEGRAM_BOT_TOKEN=your_token_here
+DEEPSEEK_API_KEY=your_key_here
 ```
 
-On the **first run**, a QR code appears in the terminal.
+Get your bot token from [@BotFather](https://t.me/BotFather). Get a DeepSeek API key at [platform.deepseek.com](https://platform.deepseek.com).
 
-Open WhatsApp on your phone → **Linked Devices** → **Link a Device** → scan the QR code.
+**Important:** Disable group privacy mode so the bot can read messages in groups:
+`@BotFather → /mybots → your bot → Bot Settings → Group Privacy → Turn OFF`
 
-After that, your session is saved in `.wwebjs_auth/` and the bot starts automatically on future runs.
+### 3. Run
 
----
+```bash
+npm run start:tg
+```
 
-## VPS Deployment (PM2)
-
-Install PM2 globally:
+### 4. Deploy with PM2
 
 ```bash
 npm install -g pm2
-```
-
-Start with PM2:
-
-```bash
-pm2 start ecosystem.config.js
+pm2 start ecosystem.config.js --only splitwala-tg
 pm2 save
-pm2 startup   # follow the printed command to auto-start on reboot
-```
-
-View logs:
-
-```bash
-pm2 logs splitwala
-```
-
-On the first run after deploying, attach to the logs to scan the QR code:
-
-```bash
-pm2 logs splitwala --lines 50
+pm2 startup
 ```
 
 ---
 
 ## Notes
 
-- Data is stored in `data/splitwala.db` (SQLite) — balances persist across restarts
-- Each group and DM has its own isolated balance sheet
+- Data is stored in `data/splitwala-tg.db` — balances persist across restarts
+- Each group has its own isolated balance sheet
 - Use `me`, `i`, or `myself` to refer to yourself in any command
-- `.wwebjs_auth/` holds your WhatsApp session — keep it private and back it up
+- Users without a public `@username` are resolvable via Telegram's inline mention (type `@` in the message box)
