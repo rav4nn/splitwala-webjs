@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Telegram Split Bot Screenshot</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #1a1a2e;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    padding: 24px;
+  }
+
+  .phone {
+    width: 400px;
+    background: #0f0f12;
+    border-radius: 40px;
+    box-shadow: 0 25px 60px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.06);
+    overflow: hidden;
+    position: relative;
+  }
+
+  .status-bar {
+    background: #0f0f12;
+    padding: 12px 20px 6px;
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    font-weight: 600;
+    color: #fff;
+    letter-spacing: 0.3px;
+  }
+  .status-bar .time { font-weight: 700; }
+  .status-icons { display: flex; gap: 6px; align-items: center; }
+  .status-icons svg { display: block; }
+
+  .chat-header {
+    background: #1f1f24;
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-bottom: 1px solid #2a2a30;
+  }
+  .back-arrow { color: #fff; font-size: 22px; line-height: 1; cursor: default; }
+  .header-avatar {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: linear-gradient(135deg, #2aabee, #229ed9);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 15px; color: #fff; flex-shrink: 0;
+    position: relative;
+  }
+  .header-info { flex: 1; }
+  .header-name { color: #fff; font-size: 15px; font-weight: 600; }
+  .header-status { color: #8e8e93; font-size: 12px; margin-top: 1px; }
+  .header-icons { display: flex; gap: 18px; color: #fff; cursor: default; }
+  .header-icons svg { display: block; opacity: 0.85; }
+
+  .chat-area {
+    background: #0b0b0e;
+    padding: 12px 14px 10px;
+    min-height: 560px;
+    position: relative;
+    background-image:
+      radial-gradient(circle at 20% 50%, rgba(42, 171, 238, 0.015) 0%, transparent 50%),
+      radial-gradient(circle at 80% 30%, rgba(42, 171, 238, 0.01) 0%, transparent 50%);
+  }
+
+  /* -- Date separator -- */
+  .date-sep {
+    text-align: center;
+    font-size: 11.5px;
+    color: #8e8e93;
+    margin: 10px 0 8px;
+    letter-spacing: 0.3px;
+  }
+  .date-sep span {
+    background: #1a1a20;
+    padding: 4px 10px;
+    border-radius: 10px;
+  }
+
+  /* -- Chat bubble base -- */
+  .bubble {
+    max-width: 88%;
+    padding: 7px 10px 8px;
+    border-radius: 16px;
+    font-size: 14px;
+    line-height: 1.5;
+    position: relative;
+    margin-bottom: 4px;
+    word-wrap: break-word;
+  }
+
+  /* -- Received (left) -- */
+  .received-wrap { display: flex; justify-content: flex-start; margin-bottom: 2px; }
+  .bubble.received {
+    background: #1c1c22;
+    color: #e8e8ed;
+    border-bottom-left-radius: 4px;
+    position: relative;
+  }
+  .bubble.received.first {
+    border-bottom-left-radius: 16px;
+  }
+  .bubble.received.last {
+    border-bottom-left-radius: 4px;
+  }
+  .bubble.received.single {
+    border-bottom-left-radius: 16px;
+  }
+
+  .bubble.received .sender-name {
+    font-size: 12px;
+    font-weight: 600;
+    color: #2aabee;
+    margin-bottom: 2px;
+  }
+
+  /* -- Sent (right) -- */
+  .sent-wrap { display: flex; justify-content: flex-end; margin-bottom: 2px; }
+  .bubble.sent {
+    background: #1f7b4b;
+    color: #e8e8ed;
+    border-bottom-right-radius: 4px;
+  }
+  .bubble.sent.first {
+    border-bottom-right-radius: 16px;
+  }
+  .bubble.sent.last {
+    border-bottom-right-radius: 4px;
+  }
+  .bubble.sent.single {
+    border-bottom-right-radius: 16px;
+  }
+
+  /* -- Bot bubble -- */
+  .bot-wrap { display: flex; justify-content: flex-start; margin-bottom: 2px; }
+  .bot-avatar {
+    width: 30px; height: 30px; border-radius: 50%;
+    background: #2aabee;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 700; color: #fff;
+    flex-shrink: 0; margin-right: 6px; margin-top: 4px;
+    align-self: flex-start;
+  }
+  .bot-content { max-width: 78%; }
+  .bubble.bot {
+    background: #1c1c22;
+    color: #e8e8ed;
+    border-bottom-left-radius: 4px;
+  }
+  .bubble.bot.first {
+    border-bottom-left-radius: 16px;
+  }
+  .bubble.bot.last {
+    border-bottom-left-radius: 4px;
+  }
+  .bubble.bot.single {
+    border-bottom-left-radius: 16px;
+  }
+  .bubble.bot .bot-name {
+    font-size: 12px;
+    font-weight: 600;
+    color: #2aabee;
+    margin-bottom: 2px;
+  }
+
+  /* -- Time label & checkmarks -- */
+  .time-label {
+    font-size: 10.5px;
+    color: rgba(255,255,255,0.35);
+    text-align: right;
+    margin-top: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 3px;
+    letter-spacing: 0.2px;
+  }
+  .time-label.sent { color: rgba(255,255,255,0.45); }
+  .time-label.received { color: rgba(255,255,255,0.3); justify-content: flex-start; }
+  .time-label svg { display: block; }
+  .check-read { color: #5bc0fb; }
+  .check-sent { color: rgba(255,255,255,0.4); }
+
+  /* -- Accent text in reply -- */
+  .accent { color: #fff; font-weight: 500; }
+  .amount { color: #5bc0fb; font-weight: 600; }
+  .name-tag { color: #2aabee; font-weight: 500; }
+  .highlight { color: #ffd600; font-weight: 600; }
+
+  /* -- Split breakdown table -- */
+  .split-table {
+    margin: 6px 0 2px;
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 14px;
+  }
+  .split-table tr td {
+    padding: 2px 0;
+    color: #d1d1d6;
+  }
+  .split-table tr td:last-child {
+    text-align: right;
+    font-weight: 600;
+    color: #fff;
+  }
+  .split-table .total td {
+    border-top: 1px solid rgba(255,255,255,0.1);
+    padding-top: 4px;
+    color: #fff;
+    font-weight: 600;
+  }
+  .split-table .divider td {
+    height: 2px;
+    border-top: 1px solid rgba(255,255,255,0.12);
+  }
+
+  /* -- Inline bot inline-keyboard style -- */
+  .bot-meta {
+    font-size: 11px;
+    color: rgba(255,255,255,0.3);
+    margin-top: 3px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .bot-meta .badge {
+    font-size: 9px;
+    background: rgba(42,171,238,0.2);
+    color: #2aabee;
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-weight: 600;
+  }
+
+  /* -- Input bar -- */
+  .input-bar {
+    background: #1a1a20;
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-top: 1px solid #25252b;
+  }
+  .input-field {
+    flex: 1;
+    background: #25252b;
+    border: none;
+    border-radius: 20px;
+    padding: 8px 14px;
+    color: #fff;
+    font-size: 14px;
+    font-family: inherit;
+    outline: none;
+  }
+  .input-field::placeholder { color: #636366; }
+  .input-icons { display: flex; gap: 12px; align-items: center; }
+  .input-icons svg { display: block; opacity: 0.7; cursor: default; }
+
+  /* -- Separator with "..." thought dots -- */
+  .typing-indicator {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 0 4px 38px;
+    margin-bottom: 2px;
+  }
+  .typing-dots {
+    background: #1c1c22;
+    padding: 8px 14px;
+    border-radius: 16px;
+    border-bottom-left-radius: 4px;
+    display: flex;
+    gap: 4px;
+  }
+  .typing-dots span {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: #8e8e93;
+    display: inline-block;
+    animation: bounce 1.4s infinite ease-in-out both;
+  }
+  .typing-dots span:nth-child(1) { animation-delay: -0.32s; }
+  .typing-dots span:nth-child(2) { animation-delay: -0.16s; }
+  .typing-dots span:nth-child(3) { animation-delay: 0s; }
+  @keyframes bounce {
+    0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+    40% { transform: scale(1); opacity: 0.9; }
+  }
+
+  .mt-4 { margin-top: 4px; }
+  .mb-2 { margin-bottom: 2px; }
+  .pin-bottom { margin-top: auto; }
+</style>
+</head>
+<body>
+<div class="phone">
+
+  <!-- Status Bar -->
+  <div class="status-bar">
+    <span class="time">9:41</span>
+    <div class="status-icons">
+      <svg width="16" height="12" viewBox="0 0 16 12" fill="none">
+        <rect x="0.5" y="2.5" width="11" height="7" rx="1.5" stroke="#fff" stroke-width="1.2"/>
+        <rect x="12" y="4" width="3" height="2" rx="0.5" fill="#fff" opacity="0.4"/>
+      </svg>
+      <svg width="16" height="12" viewBox="0 0 16 12" fill="none">
+        <path d="M8 10.5C10.5 10.5 13 8.5 14 6C13 3.5 10.5 1.5 8 1.5C5.5 1.5 3 3.5 2 6C3 8.5 5.5 10.5 8 10.5Z" stroke="#4cd964" stroke-width="1.2"/>
+        <circle cx="8" cy="6" r="2.5" fill="#4cd964"/>
+      </svg>
+      <svg width="17" height="12" viewBox="0 0 17 12" fill="none">
+        <rect x="0.5" y="0.5" width="16" height="11" rx="2" stroke="#fff" stroke-width="1"/>
+        <line x1="2.5" y1="5" x2="14.5" y2="5" stroke="#fff" stroke-width="0.6" opacity="0.3"/>
+        <line x1="4" y1="2" x2="4" y2="2" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="6" y1="2" x2="6" y2="2" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="8" y1="2" x2="8" y2="2" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+    </div>
+  </div>
+
+  <!-- Chat Header -->
+  <div class="chat-header">
+    <div class="back-arrow">&#8592;</div>
+    <div class="header-avatar">S</div>
+    <div class="header-info">
+      <div class="header-name">SplitBot</div>
+      <div class="header-status">bot &#183; typically within seconds</div>
+    </div>
+    <div class="header-icons">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+    </div>
+  </div>
+
+  <!-- Chat Area -->
+  <div class="chat-area">
+
+    <!-- Date separator -->
+    <div class="date-sep"><span>Today</span></div>
+
+    <!-- User message -->
+    <div class="sent-wrap">
+      <div class="bubble sent single" style="max-width:92%;">
+        <span style="color:#8e8e93;font-size:12px;">/</span><span style="color:#5bc0fb;font-size:12px;">split</span>
+        <span style="font-weight:400;"> dinner</span>
+        <span class="amount">500</span>
+        <span style="font-weight:400;"> between</span>
+        <span class="name-tag">@me</span>
+        <span style="font-weight:400;"> </span>
+        <span class="name-tag">@mohit</span>
+        <span style="font-weight:400;"> </span>
+        <span class="name-tag">@vipul</span>
+        <div class="time-label sent">
+          <svg width="14" height="10" viewBox="0 0 14 10" fill="none"><path d="M2 5.5L4.5 8L11 2" stroke="#5bc0fb" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          9:41
+        </div>
+      </div>
+    </div>
+
+    <!-- Typing indicator (bot processing) -->
+    <div class="typing-indicator">
+      <div class="typing-dots">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+    </div>
+
+    <!-- Bot response -->
+    <div class="bot-wrap">
+      <div class="bot-avatar">S</div>
+      <div class="bot-content">
+        <div class="bubble bot first">
+          <div class="bot-name">SplitBot</div>
+          <div style="margin-bottom:4px;">&#x2705; <b>Split created!</b></div>
+          <div style="margin-bottom:8px;color:#a1a1a6;">
+            <b>Dinner</b> &mdash; &#8377;500
+          </div>
+          <table class="split-table">
+            <tr><td><span class="name-tag">@me</span> <span style="color:#636366;font-size:12px;">(paid)</span></td><td>&#8377;500.00</td></tr>
+            <tr><td></td><td style="font-size:12px;color:#636366;padding-bottom:4px;">&#8593; gets back &#8377;333.34</td></tr>
+            <tr><td><span class="name-tag">@mohit</span></td><td>&#8377;166.66</td></tr>
+            <tr><td><span class="name-tag">@vipul</span></td><td>&#8377;166.66</td></tr>
+            <tr class="total"><td>Total</td><td>&#8377;500.00</td></tr>
+          </table>
+          <div style="margin:6px 0 4px;padding:6px 8px;background:rgba(255,255,255,0.04);border-radius:8px;font-size:13px;border-left:2px solid #2aabee;">
+            <div style="color:#a1a1a6;font-size:11px;margin-bottom:2px;">&#x1f4b0; Settlement</div>
+            <div><span class="name-tag">@mohit</span> &#8594; <span class="name-tag">@me</span>: <b>&#8377;166.66</b></div>
+            <div><span class="name-tag">@vipul</span> &#8594; <span class="name-tag">@me</span>: <b>&#8377;166.66</b></div>
+          </div>
+          <div style="font-size:12px;color:#636366;margin:4px 0 2px;">
+            &#128337; Split 3 ways &#183; equal shares
+          </div>
+          <div class="time-label received" style="margin-top:4px;">
+            <svg width="14" height="10" viewBox="0 0 14 10" fill="none"><path d="M2 5.5L4.5 8L11 2" stroke="#5bc0fb" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            9:41
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Input Bar -->
+  <div class="input-bar">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#8e8e93" stroke-width="2" stroke-linecap="round"><path d="M12 19V5M5 12h14"/></svg>
+    <input class="input-field" type="text" placeholder="Message" value="">
+    <div class="input-icons">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z" fill="#8e8e93"/></svg>
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="#8e8e93"/></svg>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

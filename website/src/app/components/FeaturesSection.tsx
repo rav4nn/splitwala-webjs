@@ -1,40 +1,38 @@
-import ScreenshotSlot from './ScreenshotSlot';
-
 const features = [
   {
     title: 'Natural language splits',
     description: 'Type expenses the way you think them. Simple equal splits or complex custom amounts — the bot handles both.',
     command: '/split 4000 by me 3000 by @vipul 1000, @vipul owes 2500, @mohit owes 1500 for groceries',
     label: '/split wizard in action',
-    imageLabel: 'Split command output',
+    screenshot: '/screenshots/tg-split.html',
   },
   {
     title: 'Simplify debts — always on',
     description: 'The bot always shows the minimum number of payments needed to settle the group. No settings, no toggles. Just clarity.',
     command: '/summary',
     label: 'Settle with minimum transfers',
-    imageLabel: '/summary output',
+    screenshot: '/screenshots/tg-summary.html',
   },
   {
     title: 'Settlements in one line',
     description: 'Once someone pays back, record it instantly. Balances update automatically and everyone can see.',
     command: '/paid 200 to @mohit',
     label: 'Clear balances as you go',
-    imageLabel: '/paid confirmation',
+    screenshot: '/screenshots/tg-paid.html',
   },
   {
     title: 'History and undo',
     description: 'Check recent transactions, filter by person, or delete a mistake. Balance reversal is automatic.',
     command: '/history 10 @mohit',
     label: 'Full audit trail',
-    imageLabel: '/history output',
+    screenshot: '/screenshots/tg-history.html',
   },
   {
     title: 'Tags mean accuracy',
     description: "The bot requires @mentions or inline Telegram tags. This is intentional — explicit beats guessed every time. Works with @usernames or Telegram's built-in mention.",
     command: '/split rent 30000 between @me @priya @arjun',
     label: 'No ambiguity, ever',
-    imageLabel: 'Mention-based split',
+    screenshot: '/screenshots/tg-mention.html',
   },
 ];
 
@@ -66,7 +64,15 @@ export default function FeaturesSection() {
                   {feature.command}
                 </code>
               </div>
-              <ScreenshotSlot label={feature.imageLabel} aspectRatio="phone" />
+              <div className="relative w-full max-w-[320px] mx-auto aspect-[9/19] rounded-[2.5rem] overflow-hidden shadow-[0_25px_60px_rgba(0,0,0,0.25)] border border-white/10">
+                <iframe
+                  src={feature.screenshot}
+                  className="absolute inset-0 w-full h-full border-0 pointer-events-none"
+                  title={feature.title}
+                  loading="lazy"
+                  scrolling="no"
+                />
+              </div>
             </div>
           ))}
         </div>
