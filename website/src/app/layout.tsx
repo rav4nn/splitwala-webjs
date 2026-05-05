@@ -18,11 +18,11 @@ const jetbrains = JetBrains_Mono({
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://splitwala.hardeep.cv'),
-  title: 'SplitWala — Split expenses. Not friendships.',
+  title: 'SplitWala | Split expenses. Not friendships.',
   description:
     'Free forever. Add @splitwala_bot to your Telegram group and split expenses in peace. No app needed, no sign-up, always-on debt simplification.',
   openGraph: {
-    title: 'SplitWala — Split expenses. Not friendships.',
+    title: 'SplitWala | Split expenses. Not friendships.',
     description: 'Free Telegram bot for splitting group expenses.',
     url: 'https://splitwala.hardeep.cv',
     siteName: 'SplitWala',
@@ -31,7 +31,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'SplitWala — Split expenses. Not friendships.',
+    title: 'SplitWala | Split expenses. Not friendships.',
     description: 'Free Telegram bot for splitting group expenses.',
   },
 };

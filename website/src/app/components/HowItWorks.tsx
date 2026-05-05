@@ -12,7 +12,7 @@ const steps = [
   {
     number: '02',
     title: 'Tag and split',
-    description: "Type a command and tag everyone involved. Tags are how the bot knows exactly who's in — no guessing.",
+    description: "Type a command and tag everyone involved. Tags are how the bot knows exactly who's in. No guessing.",
     command: '/split dinner 500 between @me @mohit @vipul',
     icon: (
       <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">

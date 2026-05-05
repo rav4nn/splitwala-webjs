@@ -3,12 +3,12 @@
 import { useState } from 'react';
 
 const faqs = [
-  { q: 'Is it really free?', a: 'Yes — completely free forever. No premium tiers, no usage limits, no ads.' },
+  { q: 'Is it really free?', a: 'Yes, completely free forever. No premium tiers, no usage limits, no ads.' },
   { q: 'Why do I need to tag people?', a: "Accuracy. The bot needs explicit @mentions to know exactly who's splitting. No guessing means no arguments later." },
-  { q: 'Does it work in DMs?', a: 'No — SplitWala is designed for group chats only. Add it to any Telegram group.' },
+  { q: 'Does it work in DMs?', a: 'No, SplitWala is designed for group chats only. Add it to any Telegram group.' },
   { q: 'Can I see old transactions?', a: 'Yes. /history shows your recent splits and payments. Add a number to see more: /history 10.' },
-  { q: 'How do I settle up?', a: 'Type /paid <amount> to @person and the balance updates instantly. Or use /got <amount> from @person — whichever reads more naturally.' },
-  { q: "What if someone doesn't have a @username?", a: "No problem. Use Telegram's built-in inline mention — type @ in the message box and select them from the list that appears." },
+  { q: 'How do I settle up?', a: 'Type /paid <amount> to @person and the balance updates instantly. Or use /got <amount> from @person. Use whichever reads more naturally.' },
+  { q: "What if someone doesn't have a @username?", a: "No problem. Use Telegram's built-in inline mention: type @ in the message box and select them from the list that appears." },
 ];
 
 function FAQItem({ q, a }: { q: string; a: string }) {

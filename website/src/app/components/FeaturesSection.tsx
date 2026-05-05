@@ -3,7 +3,7 @@ import StaticPhoneDemo from './StaticPhoneDemo';
 const features = [
   {
     title: 'Natural language splits',
-    description: 'Type expenses the way you think them. Simple equal splits or complex custom amounts — the bot handles both.',
+    description: 'Type expenses the way you think them. Simple equal splits or complex custom amounts. The bot handles both.',
     label: '/split wizard in action',
     userMsg: '/split dinner 2100 @hardeep 700\n@vipul 900 @mohit 500',
     botMsg:
@@ -18,7 +18,7 @@ const features = [
 └ /balances to check totals`,
   },
   {
-    title: 'Simplify debts — always on',
+    title: 'Simplify debts, always on',
     description: 'The bot always shows the minimum number of payments needed to settle the group. No settings, no toggles. Just clarity.',
     label: 'Settle with minimum transfers',
     userMsg: '/summary',
@@ -58,7 +58,7 @@ const features = [
   },
   {
     title: 'Tags mean accuracy',
-    description: "The bot requires @mentions or inline Telegram tags. This is intentional — explicit beats guessed every time. Works with @usernames or Telegram's built-in mention.",
+    description: "The bot requires @mentions or inline Telegram tags. This is intentional. Explicit beats guessed every time. Works with @usernames or Telegram's built-in mention.",
     label: 'No ambiguity, ever',
     userMsg: '/split rent 9000 between\n@hardeep @vipul @mohit',
     botMsg:

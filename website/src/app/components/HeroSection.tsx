@@ -23,7 +23,7 @@ export default function HeroSection() {
                 <a href="https://t.me/splitwala_bot" target="_blank" rel="noopener noreferrer" className="text-[#2AABEE] font-semibold hover:underline">
                   @splitwala_bot
                 </a>{' '}
-                to your Telegram group and split in peace. Works right inside your chat — no app install, no login, no headache.
+                to your Telegram group and split in peace. Works right inside your chat. No app install, no login, no headache.
               </p>
             </div>
             <div className="flex flex-col sm:flex-row gap-3 items-start animate-fade-in-up delay-300">

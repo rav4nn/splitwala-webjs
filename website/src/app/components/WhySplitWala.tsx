@@ -3,7 +3,7 @@ const reasons = [
   { emoji: '💸', title: 'Free forever', description: 'No premium tier, no limits, no ads. Ever.' },
   { emoji: '🏷️', title: 'Tags = accuracy', description: "Explicit @mentions mean no confusion about who's in." },
   { emoji: '⚡', title: 'Simplify debts', description: 'Always-on minimum-transfer calculation. Zero config.' },
-  { emoji: '👥', title: 'Any Telegram group', description: 'Add it to any group — works instantly.' },
+  { emoji: '👥', title: 'Any Telegram group', description: 'Add it to any group. Works instantly.' },
   { emoji: '🔒', title: 'No sign-up', description: 'No accounts, no passwords, no data collection.' },
 ];
 
