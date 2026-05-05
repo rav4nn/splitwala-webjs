@@ -411,7 +411,7 @@ async function handleSplitCallback(ctx) {
       return `<a href="tg://user?id=${uid}">${name}</a>`;
     };
 
-    const labelTxt = w.label ? `  ${escHtml(w.label)}` : '';
+    const labelTxt = w.label ? ` — ${escHtml(w.label)}` : '';
     const payerN   = renderName(w.payer);
     const splitLines = participants.map(uid => `│  ${renderName(uid)}  ${formatCurrency(share)}`);
     const result   = `┌ Expense Added${labelTxt}\n│\n│  ${formatCurrency(w.amount)} paid by ${payerN}\n│\n${splitLines.join('\n')}\n│\n└ /balances to check totals`;
