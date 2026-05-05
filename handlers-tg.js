@@ -61,6 +61,11 @@ async function reply(ctx, text, opts = {}) {
   await ctx.reply(text, { parse_mode: 'HTML', ...opts });
 }
 
+// Strip Telegram's "@botname" suffix from commands (e.g. /balances@splitwala_bot → /balances)
+function cmdText(ctx) {
+  return (ctx.message?.text || '').replace(/^(\/\w+)@\w+/, '$1');
+}
+
 // ── /start (DM welcome) ─────────────────────────────────────────────────────
 
 const START_DM_TEXT = [
@@ -103,7 +108,7 @@ async function handleBalances(ctx) {
   const r = createResolver(ctx);
   const groupId = String(ctx.chat.id);
 
-  const { targetToken } = parseBalancesArgs(ctx.message.text || '');
+  const { targetToken } = parseBalancesArgs(cmdText(ctx));
 
   if (targetToken) {
     const target = await r.resolveByText(targetToken);
@@ -197,11 +202,11 @@ async function handleSettlementCommand(ctx, parsed) {
 }
 
 async function handlePaid(ctx) {
-  await handleSettlementCommand(ctx, parsePaidCommand(ctx.message.text || ''));
+  await handleSettlementCommand(ctx, parsePaidCommand(cmdText(ctx)));
 }
 
 async function handleGot(ctx) {
-  const g = parseGotCommand(ctx.message.text || '');
+  const g = parseGotCommand(cmdText(ctx));
   // /got X from Y  ≡  /paid X from Y to me
   const equiv = { amount: g.amount, fromToken: g.fromToken, toToken: 'me', error: g.error };
   await handleSettlementCommand(ctx, equiv);
@@ -227,7 +232,7 @@ async function handleHistory(ctx) {
   pollinateCache(ctx);
   const r = createResolver(ctx);
   const groupId = String(ctx.chat.id);
-  const { count, filterToken, error } = parseHistoryArgs(ctx.message.text || '');
+  const { count, filterToken, error } = parseHistoryArgs(cmdText(ctx));
   if (error) { await reply(ctx, formatError(error, 'Use: /history [N] [@person]', '/history 10 @alice')); return; }
 
   let filterId = null;
@@ -288,7 +293,7 @@ async function handleDelete(ctx) {
   pollinateCache(ctx);
   const groupId  = String(ctx.chat.id);
   const userId   = String(ctx.from.id);
-  const { mode, index, error } = parseDeleteArgs(ctx.message.text || '');
+  const { mode, index, error } = parseDeleteArgs(cmdText(ctx));
   if (error) { await reply(ctx, formatError(error, 'Use: /delete N (1–N)', '/delete 2')); return; }
 
   const txs = store.getGroupTransactions(groupId).slice(-20).reverse();
@@ -377,7 +382,7 @@ async function handleDeleteCallback(ctx) {
 async function handleResetAll(ctx) {
   pollinateCache(ctx);
   const groupId = String(ctx.chat.id);
-  const { confirmed } = parseResetAllArgs(ctx.message.text || '');
+  const { confirmed } = parseResetAllArgs(cmdText(ctx));
 
   if (!confirmed) {
     const txs = store.getGroupTransactions(groupId);
