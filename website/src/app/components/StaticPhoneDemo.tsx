@@ -83,8 +83,8 @@ export default function StaticPhoneDemo({ userMsg, botMsg }: StaticPhoneDemoProp
           <div className="px-2 py-3 flex flex-col gap-2">
             {/* User message */}
             <div className="flex justify-end">
-              <div className="max-w-[82%] bg-[#2AABEE] text-white rounded-2xl rounded-br-sm px-2.5 py-2">
-                <pre className="whitespace-pre-wrap text-[11px] leading-relaxed" style={{ fontFamily: SYSTEM_FONT }}>{userMsg}</pre>
+              <div className="max-w-[88%] bg-[#2AABEE] text-white rounded-2xl rounded-br-sm px-2.5 py-2">
+                <pre className="whitespace-pre-wrap text-[13px] leading-relaxed" style={{ fontFamily: SYSTEM_FONT }}>{userMsg}</pre>
                 <div className="text-[8px] text-white/55 text-right mt-0.5">5:15 ✓✓</div>
               </div>
             </div>
@@ -92,9 +92,9 @@ export default function StaticPhoneDemo({ userMsg, botMsg }: StaticPhoneDemoProp
             {/* Bot message with avatar */}
             <div className="flex items-end gap-1.5 justify-start">
               <img src="/splitwala_logo.png" alt="" className="w-6 h-6 rounded-full object-cover flex-shrink-0 mb-0.5" />
-              <div className="max-w-[84%] bg-[#2A3A4E] text-[#D8E8F5] rounded-2xl rounded-bl-sm px-2.5 py-2">
+              <div className="max-w-[90%] bg-[#2A3A4E] text-[#D8E8F5] rounded-2xl rounded-bl-sm px-2.5 py-2">
                 <div className="text-[#F5820A] text-[10px] font-semibold mb-1">Splitwala</div>
-                <pre className="whitespace-pre-wrap text-[11px] leading-relaxed" style={{ fontFamily: SYSTEM_FONT }}>
+                <pre className="whitespace-pre-wrap text-[13px] leading-relaxed" style={{ fontFamily: SYSTEM_FONT }}>
                   {colorize(botMsg)}
                 </pre>
                 <div className="text-[8px] text-white/30 text-right mt-0.5">5:15</div>

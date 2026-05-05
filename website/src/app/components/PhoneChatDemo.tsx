@@ -105,12 +105,12 @@ export default function PhoneChatDemo() {
                 <path d="M7.5 1L1 8l6.5 7"/>
               </svg>
             </button>
-            <div className="w-9 h-9 rounded-full bg-[#7B61FF] flex items-center justify-center text-white text-[11px] font-bold flex-shrink-0">
+            <div className="w-9 h-9 rounded-full bg-[#7B61FF] flex items-center justify-center text-white text-[13px] font-bold flex-shrink-0">
               FL
             </div>
             <div className="flex-1 min-w-0">
               <div className="text-white text-[14px] font-semibold leading-tight">Flatmates Ltd.</div>
-              <div className="text-[#4FC3F7] text-[11px]">3 members, 1 bot</div>
+              <div className="text-[#4FC3F7] text-[13px]">3 members, 1 bot</div>
             </div>
             <div className="flex items-center gap-4 text-[#4FC3F7]">
               <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -134,7 +134,7 @@ export default function PhoneChatDemo() {
                   {msg.from === 'bot' && (
                     <img src="/splitwala_logo.png" alt="" className="w-5 h-5 rounded-full object-cover flex-shrink-0 mb-0.5" />
                   )}
-                  <div className={`max-w-[80%] px-3 py-2 ${
+                  <div className={`max-w-[86%] px-3 py-2 ${
                     msg.from === 'user'
                       ? 'bg-[#2AABEE] text-white rounded-2xl rounded-br-sm'
                       : 'bg-[#2A3A4E] text-[#D8E8F5] rounded-2xl rounded-bl-sm'
@@ -142,7 +142,7 @@ export default function PhoneChatDemo() {
                     {msg.from === 'bot' && (
                       <div className="text-[#F5820A] text-[10px] font-semibold mb-1">Splitwala</div>
                     )}
-                    <pre className="whitespace-pre-wrap text-[11px] leading-relaxed" style={{ fontFamily: SYSTEM_FONT }}>{msg.text}</pre>
+                    <pre className="whitespace-pre-wrap text-[13px] leading-relaxed" style={{ fontFamily: SYSTEM_FONT }}>{msg.text}</pre>
                     <div className={`text-[9px] mt-1 text-right ${msg.from === 'user' ? 'text-white/55' : 'text-white/30'}`}>
                       {msg.time}{msg.from === 'user' ? ' ✓✓' : ''}
                     </div>
