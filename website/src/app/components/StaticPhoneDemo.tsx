@@ -22,7 +22,7 @@ function colorize(text: string): React.ReactNode {
 
 export default function StaticPhoneDemo({ userMsg, botMsg }: StaticPhoneDemoProps) {
   return (
-    <div className="relative mx-auto select-none" style={{ width: '232px' }}>
+    <div className="relative mx-auto select-none" style={{ width: '300px' }}>
       <div className="relative bg-[#1C1C1E] rounded-[44px] shadow-[0_32px_64px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.1),inset_0_0_0_1px_rgba(255,255,255,0.04)] p-[11px]">
         {/* Buttons */}
         <div className="absolute right-[-3px] top-24 w-[3px] h-14 bg-[#2A2A2C] rounded-r-sm" />

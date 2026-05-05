@@ -50,9 +50,9 @@ const features = [
     botMsg:
 `┌ History
 │
-│  1. ravan → @vipulbhav  ₹700  05/05
-│  2. ravan paid ₹2400  groceries  05/05
-│  3. ravan paid ₹2100  dinner  05/05
+│  1. ravan → @vipulbhav  ₹700
+│  2. ravan paid ₹2400  groceries
+│  3. ravan paid ₹2100  dinner
 │
 └ /delete N to remove one`,
   },
