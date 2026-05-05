@@ -5,6 +5,7 @@ const memberCache  = require('./member-cache');
 const store        = require('./store-tg');
 const { parseSplitIntent } = require('./llm-parser');
 const { generateId, formatCurrency } = require('../core/identity');
+const { emojiForLabel } = require('../core/format');
 
 // ── Wizard state store ────────────────────────────────────────────────────────
 // Keyed by "chatId:userId" — one active wizard per user per chat.
@@ -54,12 +55,15 @@ function parseCallbackData(data) {
 
 // ── Keyboard builders ─────────────────────────────────────────────────────────
 
+const ANON_BOT_ID = '1087968824'; // @GroupAnonymousBot — anonymous admin placeholder
+
 function buildPayerKeyboard(members, senderId) {
   const kb = new InlineKeyboard();
   kb.text('You (I paid)', cd('payer', senderId, senderId));
   let col = 1;
   for (const m of members) {
     if (m.userId === senderId) continue;
+    if (String(m.userId) === ANON_BOT_ID) continue;
     if (col % 3 === 0) kb.row();
     kb.text(m.firstName, cd('payer', m.userId, senderId));
     col++;
@@ -71,6 +75,7 @@ function buildParticipantKeyboard(members, selected, senderId) {
   const kb = new InlineKeyboard();
   let col = 0;
   for (const m of members) {
+    if (String(m.userId) === ANON_BOT_ID) continue;
     if (col > 0 && col % 3 === 0) kb.row();
     const tick = selected.has(m.userId) ? '✓ ' : '';
     kb.text(`${tick}${m.firstName}`, cd('toggle', m.userId, senderId));
@@ -105,7 +110,7 @@ function displayName(userId, chatId) {
 }
 
 function buildConfirmText(w) {
-  const label    = w.label ? `<b>${escHtml(w.label)}</b> — ` : '';
+  const label    = w.label ? `${emojiForLabel(w.label)} <b>${escHtml(w.label)}</b> — ` : '';
   const payerN   = escHtml(displayName(w.payer, w.chatId));
   const count    = w.participants.length;
   const share    = Math.round((w.amount / count) * 100) / 100;
@@ -411,7 +416,7 @@ async function handleSplitCallback(ctx) {
       return `<a href="tg://user?id=${uid}">${name}</a>`;
     };
 
-    const labelTxt = w.label ? ` — ${escHtml(w.label)}` : '';
+    const labelTxt = w.label ? ` ${emojiForLabel(w.label)} ${escHtml(w.label)}` : '';
     const payerN   = renderName(w.payer);
     const splitLines = participants.map(uid => `│  ${renderName(uid)}  ${formatCurrency(share)}`);
     const result   = `┌ Expense Added${labelTxt}\n│\n│  ${formatCurrency(w.amount)} paid by ${payerN}\n│\n${splitLines.join('\n')}\n│\n└ /balances to check totals`;
