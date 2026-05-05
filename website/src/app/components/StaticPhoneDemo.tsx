@@ -30,7 +30,7 @@ export default function StaticPhoneDemo({ userMsg, botMsg }: StaticPhoneDemoProp
         <div className="absolute left-[-3px] top-16 w-[3px] h-9 bg-[#2A2A2C] rounded-l-sm" />
         <div className="absolute left-[-3px] top-28 w-[3px] h-9 bg-[#2A2A2C] rounded-l-sm" />
 
-        <div className="bg-[#212D3B] rounded-[34px] overflow-hidden flex flex-col">
+        <div className="bg-[#212D3B] rounded-[33px] overflow-hidden flex flex-col">
           {/* Status bar */}
           <div className="flex items-center justify-between px-5 pt-3 pb-1 flex-shrink-0">
             <span className="text-white text-[12px] font-semibold tracking-tight">9:41</span>

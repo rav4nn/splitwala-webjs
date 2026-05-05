@@ -73,7 +73,7 @@ export default function PhoneChatDemo() {
         <div className="absolute left-[-3px] top-20 w-[3px] h-10 bg-[#2A2A2C] rounded-l-sm" />
         <div className="absolute left-[-3px] top-36 w-[3px] h-10 bg-[#2A2A2C] rounded-l-sm" />
 
-        <div className="bg-[#212D3B] rounded-[38px] overflow-hidden flex flex-col" style={{ height: '586px' }}>
+        <div className="bg-[#212D3B] rounded-[37px] overflow-hidden flex flex-col" style={{ height: '586px' }}>
           {/* Status bar */}
           <div className="flex items-center justify-between px-6 pt-4 pb-1 flex-shrink-0">
             <span className="text-white text-[13px] font-semibold tracking-tight">9:41</span>

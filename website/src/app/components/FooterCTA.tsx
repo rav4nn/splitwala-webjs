@@ -14,7 +14,7 @@ export default function FooterCTA() {
       </div>
       <div className="max-w-5xl mx-auto mt-16 pt-8 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4">
         <div className="flex items-center gap-2">
-          <img src="/splitwala_logo.png" alt="SplitWala" className="w-6 h-6 rounded-md" />
+          <img src="/splitwala_logo.png" alt="SplitWala" className="w-6 h-6 rounded-md outline outline-1 outline-white/10" />
           <span className="text-white/40 text-sm">SplitWala</span>
         </div>
         <div className="flex items-center gap-6 text-sm text-white/40">

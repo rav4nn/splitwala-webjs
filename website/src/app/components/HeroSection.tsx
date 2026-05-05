@@ -15,18 +15,19 @@ export default function HeroSection() {
               Split expenses.<br />
               <span className="text-[#2AABEE]">Not friendships.</span>
             </h1>
-            <p className="text-xl text-[#6B7280] leading-relaxed max-w-md animate-fade-in-up delay-200">
-              Add{' '}
-              <a href="https://t.me/splitwala_bot" target="_blank" rel="noopener noreferrer" className="text-[#2AABEE] font-semibold hover:underline">
-                @splitwala_bot
-              </a>{' '}
-              to your Telegram group and split in peace. Works right inside your chat — no app, no accounts.
-            </p>
+            <div className="text-xl text-[#6B7280] leading-relaxed max-w-md animate-fade-in-up delay-200 space-y-3">
+              <p>Tired of asking friends to install the bill splitting app?</p>
+              <p>Tired of watching ads just to add a bill split on a trip?</p>
+              <p>
+                Add{' '}
+                <a href="https://t.me/splitwala_bot" target="_blank" rel="noopener noreferrer" className="text-[#2AABEE] font-semibold hover:underline">
+                  @splitwala_bot
+                </a>{' '}
+                to your Telegram group and split in peace. Works right inside your chat — no app install, no login, no headache.
+              </p>
+            </div>
             <div className="flex flex-col sm:flex-row gap-3 items-start animate-fade-in-up delay-300">
               <CTAButton size="lg" />
-              <a href="#how-it-works" className="inline-flex items-center justify-center gap-2 px-6 py-4 text-[#6B7280] hover:text-[#1A1A1A] font-semibold transition-colors">
-                See how it works ↓
-              </a>
             </div>
           </div>
           <div className="animate-fade-in-up delay-200 lg:pl-6 flex justify-center">

@@ -17,6 +17,7 @@ const jetbrains = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://splitwala.hardeep.cv'),
   title: 'SplitWala — Split expenses. Not friendships.',
   description:
     'Free forever. Add @splitwala_bot to your Telegram group and split expenses in peace. No app needed, no sign-up, always-on debt simplification.',

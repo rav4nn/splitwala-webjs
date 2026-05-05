@@ -26,7 +26,11 @@ function FAQItem({ q, a }: { q: string; a: string }) {
           </svg>
         </span>
       </button>
-      {open && <div className="pb-5 text-[#6B7280] leading-relaxed text-base pr-10">{a}</div>}
+      <div className={`grid transition-[grid-template-rows,opacity] duration-200 ease-out ${open ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
+        <div className="overflow-hidden">
+          <div className="pb-5 text-[#6B7280] leading-relaxed text-base pr-10">{a}</div>
+        </div>
+      </div>
     </div>
   );
 }

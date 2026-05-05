@@ -19,7 +19,7 @@ export default function HomePage() {
       <FooterCTA />
 
       {/* Mobile floating CTA — only visible below sm breakpoint */}
-      <div className="sm:hidden fixed bottom-5 left-4 z-50">
+      <div className="sm:hidden fixed bottom-5 right-4 z-50">
         <CTAButton size="md" />
       </div>
     </main>
