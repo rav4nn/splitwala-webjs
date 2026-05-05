@@ -105,8 +105,9 @@ bot.catch((err) => {
 
 // ── Start polling ───────────────────────────────────────────────────────────
 bot.start({
-  onStart: (info) => {
+  onStart: async (info) => {
     console.log(`✅ SplitWala-TG ready as @${info.username}`);
+    await bot.api.deleteMyCommands().catch(e => console.error('[deleteMyCommands]', e.message));
     startHeartbeat();
   },
 });
