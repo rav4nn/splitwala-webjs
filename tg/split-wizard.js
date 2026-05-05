@@ -11,6 +11,7 @@ const { generateId, formatCurrency } = require('../core/identity');
 
 const wizards = new Map();
 const WIZARD_TTL = 5 * 60 * 1000; // 5 minutes
+const adminHintShown = new Set(); // track per-chat so hint shows only once
 
 function wizardKey(chatId, userId) { return `${chatId}:${userId}`; }
 
@@ -233,10 +234,20 @@ async function advanceSplitWizard(ctx, w) {
 
 // ── Cleanup helpers ───────────────────────────────────────────────────────────
 
+async function showAdminHint(ctx, chatId) {
+  if (adminHintShown.has(chatId)) return;
+  adminHintShown.add(chatId);
+  try {
+    await ctx.reply('💡 I can\'t delete old messages without admin rights — you can ignore the prompts above.');
+  } catch (_) {}
+}
+
 async function cleanupQuestions(ctx, w) {
+  let failed = false;
   for (const id of w.questionMsgIds) {
-    try { await ctx.api.deleteMessage(w.chatId, id); } catch (_) {}
+    try { await ctx.api.deleteMessage(w.chatId, id); } catch (_) { failed = true; }
   }
+  if (failed) await showAdminHint(ctx, w.chatId);
   w.questionMsgIds = [];
 }
 
@@ -251,7 +262,7 @@ async function handleWizardText(ctx) {
   // Remove the "how much?" prompt
   const lastPromptId = w.questionMsgIds.at(-1);
   if (lastPromptId) {
-    try { await ctx.api.deleteMessage(chatId, lastPromptId); } catch (_) {}
+    try { await ctx.api.deleteMessage(chatId, lastPromptId); } catch (_) { await showAdminHint(ctx, chatId); }
     w.questionMsgIds = w.questionMsgIds.slice(0, -1);
   }
 
@@ -302,7 +313,7 @@ async function handleSplitCallback(ctx) {
     w.payer = value;
     w.step  = null;
     setWizard(chatId, senderId, w);
-    try { await ctx.deleteMessage(); } catch (_) {}
+    try { await ctx.deleteMessage(); } catch (_) { await showAdminHint(ctx, chatId); }
     w.questionMsgIds = w.questionMsgIds.filter(id => id !== ctx.callbackQuery.message?.message_id);
     await ctx.answerCallbackQuery();
     await advanceSplitWizard(ctx, w);
@@ -334,7 +345,7 @@ async function handleSplitCallback(ctx) {
     w.participants = sel;
     w.step = null;
     setWizard(chatId, senderId, w);
-    try { await ctx.deleteMessage(); } catch (_) {}
+    try { await ctx.deleteMessage(); } catch (_) { await showAdminHint(ctx, chatId); }
     w.questionMsgIds = w.questionMsgIds.filter(id => id !== ctx.callbackQuery.message?.message_id);
     await ctx.answerCallbackQuery();
     await advanceSplitWizard(ctx, w);

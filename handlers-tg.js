@@ -17,8 +17,7 @@ const {
 } = require('./core/parser');
 
 const {
-  formatError, formatBalanceLine, formatSettlementLine,
-  formatHelpText, formatNoBalancesMessage,
+  formatError, formatHelpText, formatNoBalancesMessage,
 } = require('./core/format');
 
 const { formatCurrency, generateId } = require('./core/identity');
@@ -35,6 +34,14 @@ function renderMention(name, mentionRef) {
 
 function escapeHtml(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+/** Render a user as a clickable tg://user deep link. */
+function renderUserLink(userId) {
+  const id = String(userId);
+  const name = store.getName(id);
+  if (id.startsWith('@')) return escapeHtml(name);
+  return `<a href="tg://user?id=${id}">${escapeHtml(name)}</a>`;
 }
 
 /** Pull every user object out of a ctx.message (sender, reply target, mentions) into the cache. */
@@ -127,8 +134,12 @@ async function handleBalances(ctx) {
     await reply(ctx, '✅ All settled up!');
     return;
   }
-  const rendered = lines.map(l => formatBalanceLine(l));
-  await reply(ctx, escapeHtml(rendered.join('\n')));
+  const rendered = lines.map(l => {
+    const link = renderUserLink(l.otherId);
+    if (l.direction === 'iOwe') return `• You owe ${link} ${formatCurrency(l.amount)}`;
+    return `• ${link} owes you ${formatCurrency(l.amount)}`;
+  });
+  await reply(ctx, rendered.join('\n'));
 }
 
 // ── /summary ─────────────────────────────────────────────────────────────────
@@ -142,12 +153,10 @@ async function handleSummary(ctx) {
     await reply(ctx, formatNoBalancesMessage(empty));
     return;
   }
-  const lines = simplified.map(t => formatSettlementLine({
-    fromName: store.getName(t.from),
-    toName:   store.getName(t.to),
-    amount:   t.amount,
-  }));
-  await reply(ctx, '💰 Final Summary:\n\n' + escapeHtml(lines.join('\n')));
+  const lines = simplified.map(t =>
+    `${renderUserLink(t.from)} owes ${renderUserLink(t.to)} ${formatCurrency(t.amount)}`
+  );
+  await reply(ctx, '💰 Final Summary:\n\n' + lines.join('\n'));
 }
 
 // ── /paid and /got ───────────────────────────────────────────────────────────
@@ -188,9 +197,7 @@ async function handleSettlementCommand(ctx, parsed) {
   }
 
   store.recordSettlement(groupId, fromId, toId, parsed.amount);
-  const fromName = store.getName(fromId);
-  const toName   = store.getName(toId);
-  await reply(ctx, `✅ Recorded: ${escapeHtml(fromName)} paid ${escapeHtml(toName)} ${formatCurrency(parsed.amount)}`);
+  await reply(ctx, `✅ Recorded: ${renderUserLink(fromId)} paid ${renderUserLink(toId)} ${formatCurrency(parsed.amount)}`);
 }
 
 async function handlePaid(ctx) {
@@ -243,11 +250,11 @@ async function handleHistory(ctx) {
   const lines = txs.map((t, idx) => {
     const date = new Date(t.timestamp).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' });
     if (t.type === 'settlement') {
-      return `${idx + 1}. [${date}] ${escapeHtml(store.getName(t.from))} → ${escapeHtml(store.getName(t.to))}: ${formatCurrency(t.amount)}`;
+      return `${idx + 1}. [${date}] ${renderUserLink(t.from)} → ${renderUserLink(t.to)}: ${formatCurrency(t.amount)}`;
     }
     const payer = Object.keys(t.contributions)[0];
     const labelTxt = t.label ? ` (${escapeHtml(t.label)})` : '';
-    return `${idx + 1}. [${date}] ${escapeHtml(store.getName(payer))} paid ${formatCurrency(t.amount)}${labelTxt}`;
+    return `${idx + 1}. [${date}] ${renderUserLink(payer)} paid ${formatCurrency(t.amount)}${labelTxt}`;
   });
   await reply(ctx, lines.join('\n'));
 }
@@ -343,13 +350,21 @@ async function handleDeleteCallback(ctx) {
 
   if (action === 'ok') {
     store.deleteTransaction(value, groupId);
-    try { await ctx.editMessageText('🗑 Transaction deleted.'); } catch (_) {}
+    try {
+      await ctx.editMessageText('🗑 Transaction deleted.');
+    } catch (_) {
+      await ctx.reply('🗑 Transaction deleted.');
+    }
     await ctx.answerCallbackQuery({ text: 'Deleted.' });
     return true;
   }
 
   if (action === 'cx') {
-    try { await ctx.deleteMessage(); } catch (_) {}
+    try {
+      await ctx.deleteMessage();
+    } catch (_) {
+      try { await ctx.editMessageText('✗ Cancelled.'); } catch (_e) {}
+    }
     await ctx.answerCallbackQuery({ text: 'Cancelled.' });
     return true;
   }

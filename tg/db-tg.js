@@ -80,6 +80,16 @@ db.exec(`
     PRIMARY KEY (group_id, debtor, creditor)
   );
   CREATE INDEX IF NOT EXISTS idx_bal_group ON balances(group_id);
+
+  CREATE TABLE IF NOT EXISTS members (
+    chat_id    TEXT NOT NULL,
+    user_id    TEXT NOT NULL,
+    name       TEXT NOT NULL,
+    username   TEXT,
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY (chat_id, user_id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_members_chat ON members(chat_id);
 `);
 
 const stmts = {
@@ -117,6 +127,9 @@ const stmts = {
   upsertBalance:     db.prepare(`INSERT INTO balances(group_id, debtor, creditor, amount) VALUES(?, ?, ?, ?) ON CONFLICT(group_id, debtor, creditor) DO UPDATE SET amount = excluded.amount`),
   groupBalances:     db.prepare(`SELECT debtor, creditor, amount FROM balances WHERE group_id = ?`),
   deleteGroupBal:    db.prepare(`DELETE FROM balances WHERE group_id = ?`),
+  upsertMember:      db.prepare(`INSERT OR REPLACE INTO members(chat_id, user_id, name, username, updated_at) VALUES(?, ?, ?, ?, ?)`),
+  getMembersByChatId: db.prepare(`SELECT user_id, name, username FROM members WHERE chat_id = ?`),
+  getMemberByUsername: db.prepare(`SELECT chat_id, user_id, name, username FROM members WHERE chat_id = ? AND username = ?`),
 };
 
 function setUserName(userId, name) { if (name && name.trim()) stmts.upsertUser.run(String(userId), name.trim()); }
@@ -190,10 +203,23 @@ const migrateUserId = db.transaction((oldKey, newId) => {
   }
 });
 
+function upsertMember(chatId, userId, name, username) {
+  stmts.upsertMember.run(String(chatId), String(userId), name, username || null, new Date().toISOString());
+}
+
+function getMembersByChatId(chatId) {
+  return stmts.getMembersByChatId.all(String(chatId));
+}
+
+function getMemberByUsername(chatId, username) {
+  return stmts.getMemberByUsername.get(String(chatId), username);
+}
+
 module.exports = {
   setUserName, getUserName,
   writeTransaction, getTransaction, getGroupTransactions, removeTransaction,
   getBalanceAmount, setBalance, getGroupBalances,
   resetGroup, migrateUserId,
+  upsertMember, getMembersByChatId, getMemberByUsername,
   _db: db,
 };
