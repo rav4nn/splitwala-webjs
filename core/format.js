@@ -59,8 +59,8 @@ const HELP_TEXT = [
   '  View past transactions',
   '',
   '━━━━━━━━━━━━━━━━━━━━━━━━',
-  'Use @mentions and I understand natural amounts,',
-  'labels and payers — no strict syntax needed.',
+  'Just type naturally and use tags — I understand',
+  '"/split 800 for pizza among @raj and @priya paid by @me"',
 ].join('\n');
 
 function formatHelpText() {
