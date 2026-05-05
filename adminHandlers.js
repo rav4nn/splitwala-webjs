@@ -378,7 +378,7 @@ async function handleResetAll(msg, client) {
     // Check if a reset is already pending for this group
     const existingPending = getPendingResetForGroup(chatId);
     if (existingPending) {
-      await client.sendMessage(chatId, '⚠️ A reset request is already pending for this group.');
+      await client.sendMessage(chatId, '┌ Reset Pending\n│\n│  A reset request is already pending for this group.\n└');
       return;
     }
     
@@ -393,19 +393,17 @@ async function handleResetAll(msg, client) {
     });
     
     // Format confirmation message
-    const confirmationMessage = 
-`⚠️ *DANGER: RESET ALL DATA*
-
-This will permanently delete ALL transactions and balances for this group.
-
-Transactions: ${stats.count}
-Total volume: ${formatCurrency(stats.totalVolume)}
-
-To confirm, type exactly:
-
-/resetall confirm
-
-⏳ This will expire in 60 seconds.`;
+    const confirmationMessage =
+`┌ Reset Warning
+│
+│  This will permanently delete ALL data for this group.
+│
+│  Transactions: ${stats.count}
+│  Total volume: ${formatCurrency(stats.totalVolume)}
+│
+│  Type /resetall confirm to proceed.
+│  Expires in 60 seconds.
+└`;
     
     await client.sendMessage(chatId, confirmationMessage);
     return;
@@ -418,26 +416,26 @@ To confirm, type exactly:
   
   // Edge case 1: No pending reset found
   if (!pendingReset) {
-    await client.sendMessage(chatId, '❌ No reset request found. Use /resetall first.');
+    await client.sendMessage(chatId, '┌ No Reset Found\n│\n│  Use /resetall first to start.\n└');
     return;
   }
-  
+
   // Edge case 2: Wrong type
   if (pendingReset.type !== 'resetall') {
-    await client.sendMessage(chatId, '❌ No reset request found. Use /resetall first.');
+    await client.sendMessage(chatId, '┌ No Reset Found\n│\n│  Use /resetall first to start.\n└');
     return;
   }
-  
+
   // Edge case 3: Expired
   if (Date.now() > pendingReset.expiresAt) {
     clearPending(senderId, chatId);
-    await client.sendMessage(chatId, '❌ Reset request expired. Please run /resetall again.');
+    await client.sendMessage(chatId, '┌ Expired\n│\n│  Reset request expired. Run /resetall again.\n└');
     return;
   }
-  
+
   // Edge case 4: Different user trying to confirm
   if (pendingReset.initiatorId !== senderId) {
-    await client.sendMessage(chatId, '❌ Only the user who initiated the reset can confirm this action.');
+    await client.sendMessage(chatId, '┌ Not Authorized\n│\n│  Only the user who initiated the reset can confirm.\n└');
     return;
   }
   
@@ -464,13 +462,13 @@ To confirm, type exactly:
   resetAllGroupData(chatId);
 
   // Send response with summary and confirmation
-  const suffix = '\n\n🗑️ All transactions and balances for this group have been cleared.';
+  const suffix = '\n│\n│  All transactions and balances cleared.\n└';
 
   if (simplified.length === 0) {
     const hadParticipants = getParticipants(chatId).length > 0;
     const response = hadParticipants
-      ? `✅ All settled up!${suffix}`
-      : `✅ No balances to settle.${suffix}`;
+      ? `┌ Reset Complete\n│\n│  All settled up!${suffix}`
+      : `┌ Reset Complete\n│\n│  No balances to settle.${suffix}`;
     await client.sendMessage(chatId, response);
     return;
   }
@@ -489,7 +487,7 @@ To confirm, type exactly:
     if (toFullId   && !mentions.includes(toFullId))   mentions.push(toFullId);
   }
 
-  const response = `💰 Final Summary before reset:\n\n${lines.join('\n')}${suffix}`;
+  const response = `┌ Reset Complete\n│\n│  Final summary before reset:\n${lines.map(l => `│  ${l}`).join('\n')}${suffix}`;
   await client.sendMessage(chatId, appendLidResolutionNote(response), mentions.length > 0 ? { mentions } : {});
 }
 
@@ -503,7 +501,7 @@ async function handleHistory(msg, client) {
 
   const { count, filterToken, error: histErr } = parseHistoryArgs(msg.body);
   if (histErr) {
-    await client.sendMessage(chatId, `❌ ${histErr}`);
+    await client.sendMessage(chatId, `┌ Invalid\n│\n│  ${histErr}\n└`);
     return;
   }
 
@@ -555,7 +553,7 @@ async function handleDelete(msg, client) {
 
   const { mode, index, error: delErr } = parseDeleteArgs(msg.body);
   if (delErr) {
-    await client.sendMessage(chatId, `❌ ${delErr}`);
+    await client.sendMessage(chatId, `┌ Invalid\n│\n│  ${delErr}\n└`);
     return;
   }
 
@@ -580,7 +578,7 @@ async function handleDelete(msg, client) {
       blocks.push(formatted);
     }
     
-    const reply = `📋 Recent transactions:\n\n${blocks.join('\n\n')}\n\nTo delete a transaction, type:\n/delete <number>\n\nExample: /delete 2`;
+    const reply = `┌ Recent Transactions\n│\n${blocks.map(b => `│  ${b}`).join('\n│\n')}\n│\n└ /delete <number> to remove one`;
     
     await client.sendMessage(chatId, appendLidResolutionNote(reply));
     return;
@@ -591,7 +589,7 @@ async function handleDelete(msg, client) {
     // Get transaction by index
     const tx = getTransactionByIndex(chatId, index);
     if (!tx) {
-      await client.sendMessage(chatId, '❌ Invalid selection. Use /delete to view transactions.');
+      await client.sendMessage(chatId, '┌ Not Found\n│\n│  Invalid selection. Use /delete to view transactions.\n└');
       return;
     }
     
@@ -602,12 +600,13 @@ async function handleDelete(msg, client) {
     deleteTransaction(tx.id, chatId);
     
     // Send deletion confirmation with required format
-    const deletionMessage = 
-`⚠️ *DELETED TRANSACTION*
-
-${formattedTx}
-
-✅ Transaction has been removed.`;
+    const deletionMessage =
+`┌ Deleted
+│
+│  ${formattedTx}
+│
+│  Transaction removed and balances updated.
+└`;
     
     await client.sendMessage(chatId, appendLidResolutionNote(deletionMessage));
     return;

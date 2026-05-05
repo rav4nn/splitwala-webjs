@@ -186,9 +186,11 @@ const ROUTES = [
 ];
 
 const USAGE =
-  '❌ I could not recognize that command.\n' +
-  '✅ Use one of the supported slash commands.\n' +
-  '📝 Example: /help';
+  '┌ Unknown Command\n' +
+  '│\n' +
+  '│  I didn\'t recognize that.\n' +
+  '│  Try typing naturally or use /help\n' +
+  '└';
 
 client.on('message', async msg => {
   if (msg.isStatus || msg.fromMe) return;

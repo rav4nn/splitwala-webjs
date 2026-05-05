@@ -1,13 +1,21 @@
 'use strict';
-/**
- * core/format.js — text rendering for bot replies.
- *
- * Pure: takes plain JS objects / primitives, returns strings.
- * No Markdown / HTML — both transports send plain text by default
- * (Telegram entity formatting is handled by the platform adapter, not here).
- */
 
 const { formatCurrency } = require('./identity');
+
+// ── Box-drawing message builder ──────────────────────────────────────────────
+
+function formatBox(title, bodyLines, footer) {
+  let msg = `┌ ${title}\n│\n`;
+  for (const line of bodyLines) {
+    msg += line === '' ? '│\n' : `│  ${line}\n`;
+  }
+  if (footer) {
+    msg += `│\n└ ${footer}`;
+  } else {
+    msg += '└';
+  }
+  return msg;
+}
 
 function formatError(problem, fix, example) {
   const cleanProblem = String(problem || 'Invalid input.')
@@ -16,50 +24,43 @@ function formatError(problem, fix, example) {
     .map(line => line.replace(/^\s*[-•]\s*/, '').trim())
     .filter(Boolean)
     .join(' ');
-  return `❌ ${cleanProblem}\n✅ ${fix}\n📝 Example: ${example}`;
+  return formatBox(cleanProblem, [fix, `Try: ${example}`], '/help for commands');
 }
 
-/**
- * @param {{ direction: 'iOwe'|'owedToMe', otherName: string, amount: number }} entry
- */
 function formatBalanceLine({ direction, otherName, amount }) {
-  if (direction === 'iOwe') return `• You owe ${otherName} ${formatCurrency(amount)}`;
-  return `• ${otherName} owes you ${formatCurrency(amount)}`;
+  if (direction === 'iOwe') return `You owe ${otherName}  ${formatCurrency(amount)}`;
+  return `${otherName} owes you  ${formatCurrency(amount)}`;
 }
 
 function formatSettlementLine({ fromName, toName, amount }) {
-  return `${fromName} owes ${toName} ${formatCurrency(amount)}`;
+  return `${fromName} → ${toName}  ${formatCurrency(amount)}`;
 }
 
 function formatNoBalancesMessage(isEmptyGroup) {
-  return isEmptyGroup ? 'No expenses recorded yet.' : '✅ All settled up!';
+  if (isEmptyGroup) return formatBox('No Data', ['No expenses recorded yet.'], '/split to add one');
+  return formatBox('All Settled', ['Everyone is squared up.']);
 }
 
-// Plain text — no *bold* WhatsApp markdown. WhatsApp renders *…* natively.
-// Telegram with parse_mode:'HTML' would show raw * chars, so we keep this neutral.
-// Telegram handler wraps command names in <b> tags before sending if desired (sprint 3).
 const HELP_TEXT = [
-  'SplitWala — Commands',
+  '━━━━━━━━━━━━━━━━━━━━━━━━',
+  '  SplitWala',
+  '━━━━━━━━━━━━━━━━━━━━━━━━',
   '',
-  '/split <amount>  Split equally among everyone in the group',
-  '/split <amount> @A @B  Split among only those people',
-  '/split <amount> for <label>  Add an expense label',
-  '/split <amount> by @A 100 @B 200  Custom contributions / debts',
+  '/split 1500 dinner',
+  '  Split an expense with the group',
   '',
-  '/paid <amount> to @person  You paid them',
-  '/paid <amount> from @person  They paid you',
-  '/got <amount> from @person  Same as /paid <amt> from',
+  '/paid 500 to @alice',
+  '  Record a payment',
   '',
-  '/balances  Show what you owe / are owed',
-  '/balances @person  Just for that one person',
-  '/summary  Group scoreboard (minimum settlements)',
+  '/balances',
+  '  See who owes what',
   '',
-  '/history [N] [@person]  Last N transactions (max 20)',
-  '/delete  List recent transactions',
-  '/delete N  Delete tx #N and reverse its balance impact',
+  '/history',
+  '  View past transactions',
   '',
-  '/resetall confirm  Wipe ALL group data (irreversible)',
-  '/help  Show this message',
+  '━━━━━━━━━━━━━━━━━━━━━━━━',
+  'Just type naturally — I understand',
+  '"split 800 for pizza among raj and priya"',
 ].join('\n');
 
 function formatHelpText() {
@@ -67,6 +68,7 @@ function formatHelpText() {
 }
 
 module.exports = {
+  formatBox,
   formatError,
   formatBalanceLine,
   formatSettlementLine,

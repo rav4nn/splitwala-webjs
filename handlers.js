@@ -1900,7 +1900,7 @@ async function handleSettlement(msg, client, isPaidCommand) {
       // So: from = sender, to = counterparty
       recordSettlement(chatId, senderCanonical, counterpartyCanonical, amount);
       
-      const reply = `✅ Payment recorded:\n@${senderCanonical} paid @${counterpartyCanonical} ${formatCurrency(amount)}`;
+      const reply = `┌ Payment Recorded\n│\n│  @${senderCanonical} → @${counterpartyCanonical}  ${formatCurrency(amount)}\n│\n└ /balances to check totals`;
       await client.sendMessage(chatId, appendLidResolutionNote(reply), {
         mentions: [senderFullId, counterparty.fullId]
       });
@@ -1909,9 +1909,9 @@ async function handleSettlement(msg, client, isPaidCommand) {
       // So: from = counterparty, to = sender
       recordSettlement(chatId, counterpartyCanonical, senderCanonical, amount);
 
-      const reply = `✅ Payment recorded:\n@${counterpartyCanonical} paid @${senderCanonical} ${formatCurrency(amount)}`;
-      await client.sendMessage(chatId, appendLidResolutionNote(reply), { 
-        mentions: [senderFullId, counterparty.fullId] 
+      const reply = `┌ Payment Recorded\n│\n│  @${counterpartyCanonical} → @${senderCanonical}  ${formatCurrency(amount)}\n│\n└ /balances to check totals`;
+      await client.sendMessage(chatId, appendLidResolutionNote(reply), {
+        mentions: [senderFullId, counterparty.fullId]
       });
     }
   } catch (error) {
@@ -2008,7 +2008,7 @@ async function handleSummary(msg, client) {
     if (toFullId   && !mentions.includes(toFullId))   mentions.push(toFullId);
   }
 
-  const reply = `✨ Balances simplified through the magic of SplitWala ✨\n\n💰 Final Summary:\n\n${lines.join('\n')}`;
+  const reply = `┌ Settlement Summary\n│\n${lines.map(l => `│  ${l}`).join('\n')}\n│\n└ Minimum transfers to settle up`;
 
   await client.sendMessage(chatId, appendLidResolutionNote(reply), mentions.length > 0 ? { mentions } : {});
 }

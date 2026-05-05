@@ -109,14 +109,16 @@ function buildConfirmText(w) {
   const payerN   = escHtml(displayName(w.payer, w.chatId));
   const count    = w.participants.length;
   const share    = Math.round((w.amount / count) * 100) / 100;
-  const lines    = w.participants.map(uid => `• ${escHtml(displayName(uid, w.chatId))}: ${formatCurrency(share)}`);
+  const lines    = w.participants.map(uid => `  ${escHtml(displayName(uid, w.chatId))}  ${formatCurrency(share)}`);
   return [
-    `${label}${formatCurrency(w.amount)}`,
-    `Paid by: ${payerN}`,
-    `Split equally (${count} people):`,
-    ...lines,
-    '',
-    'Confirm?',
+    `┌ ${label}${formatCurrency(w.amount)}`,
+    '│',
+    `│  Paid by: ${payerN}`,
+    `│  Split: ${count} people`,
+    '│',
+    ...lines.map(l => `│${l}`),
+    '│',
+    '└ Confirm?',
   ].join('\n');
 }
 
@@ -154,7 +156,7 @@ async function advanceSplitWizard(ctx, w) {
   // Step 1 — need amount
   if (w.amount === null || w.amount === undefined) {
     w.step = 'amount';
-    const msg = await ctx.reply('💬 How much was it? Reply with the amount (e.g. 1500).');
+    const msg = await ctx.reply('┌ Amount?\n│\n│  Reply with the amount (e.g. 1500)\n└');
     w.questionMsgIds.push(msg.message_id);
     setWizard(chatId, senderId, w);
     return;
@@ -219,7 +221,7 @@ async function advanceSplitWizard(ctx, w) {
   // All info gathered — show confirmation
   if (w.participants.length < 2) {
     await cleanupQuestions(ctx, w);
-    await ctx.reply('❌ Need at least 2 people to split. Use /split to try again.');
+    await ctx.reply('┌ Not enough people\n│\n│  Need at least 2 people to split.\n│  Use /split to try again.\n└');
     clearWizard(chatId, senderId);
     return;
   }
@@ -238,7 +240,7 @@ async function showAdminHint(ctx, chatId) {
   if (adminHintShown.has(chatId)) return;
   adminHintShown.add(chatId);
   try {
-    await ctx.reply('💡 I can\'t delete old messages without admin rights — you can ignore the prompts above.');
+    await ctx.reply('┌ Note\n│\n│  I can\'t delete old messages without admin rights.\n│  You can ignore the prompts above.\n└');
   } catch (_) {}
 }
 
@@ -269,7 +271,7 @@ async function handleWizardText(ctx) {
   const raw    = (ctx.message.text || '').replace(/[,₹\s]/g, '');
   const amount = parseFloat(raw);
   if (!amount || amount <= 0) {
-    const msg = await ctx.reply('❌ Couldn\'t parse that as an amount. Reply with a number (e.g. 1500):');
+    const msg = await ctx.reply('┌ Invalid amount\n│\n│  Reply with a number (e.g. 1500)\n└');
     w.questionMsgIds.push(msg.message_id);
     setWizard(chatId, senderId, w);
     return true;
@@ -295,7 +297,7 @@ async function handleSplitCallback(ctx) {
 
   // Guard: only the wizard owner interacts
   if (String(ctx.from.id) !== senderId) {
-    await ctx.answerCallbackQuery({ text: '🚫 Not your split — start one with /split' });
+    await ctx.answerCallbackQuery({ text: 'Not your split — start one with /split' });
     return true;
   }
 
@@ -303,7 +305,7 @@ async function handleSplitCallback(ctx) {
   const w = getWizard(chatId, senderId);
 
   if (!w) {
-    await ctx.answerCallbackQuery({ text: '⏱ Wizard expired. Start again with /split' });
+    await ctx.answerCallbackQuery({ text: 'Expired — start again with /split' });
     try { await ctx.editMessageReplyMarkup({ reply_markup: new InlineKeyboard() }); } catch (_) {}
     return true;
   }
@@ -409,10 +411,10 @@ async function handleSplitCallback(ctx) {
       return `<a href="tg://user?id=${uid}">${name}</a>`;
     };
 
-    const labelTxt = w.label ? ` for <b>${escHtml(w.label)}</b>` : '';
+    const labelTxt = w.label ? `  ${escHtml(w.label)}` : '';
     const payerN   = renderName(w.payer);
-    const lines    = participants.map(uid => `• ${renderName(uid)}: ${formatCurrency(share)}`);
-    const result   = `✅ ${payerN} paid ${formatCurrency(w.amount)}${labelTxt}\nSplit:\n${lines.join('\n')}`;
+    const splitLines = participants.map(uid => `│  ${renderName(uid)}  ${formatCurrency(share)}`);
+    const result   = `┌ Expense Added${labelTxt}\n│\n│  ${formatCurrency(w.amount)} paid by ${payerN}\n│\n${splitLines.join('\n')}\n│\n└ /balances to check totals`;
 
     // Edit confirm message → final result (removes buttons)
     try { await ctx.editMessageText(result, { parse_mode: 'HTML' }); } catch (_) {
@@ -427,7 +429,7 @@ async function handleSplitCallback(ctx) {
   if (action === 'cancel') {
     await ctx.answerCallbackQuery();
     clearWizard(chatId, senderId);
-    try { await ctx.editMessageText('❌ Split cancelled.'); } catch (_) {}
+    try { await ctx.editMessageText('└ Split cancelled.'); } catch (_) {}
     await cleanupQuestions(ctx, w);
     return true;
   }

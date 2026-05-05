@@ -17,7 +17,7 @@ const {
 } = require('./core/parser');
 
 const {
-  formatError, formatHelpText, formatNoBalancesMessage,
+  formatBox, formatError, formatHelpText, formatNoBalancesMessage,
 } = require('./core/format');
 
 const { formatCurrency, generateId } = require('./core/identity');
@@ -66,17 +66,10 @@ async function reply(ctx, text, opts = {}) {
 const START_DM_TEXT = [
   '<b>SplitWala</b> — split expenses in Telegram groups.',
   '',
-  'Add me to a group and I\'ll track who owes whom.',
+  'Add me to a group and type naturally:',
+  '<i>"split 600 dinner with alice and bob"</i>',
   '',
-  '<b>How to get started:</b>',
-  '1. Add me to a group chat',
-  '2. Send /split 600 @alice @bob — I\'ll split it equally',
-  '3. Use /balances to see who owes what',
-  '4. Use /paid 200 to @alice when someone pays up',
-  '',
-  'That\'s it — no sign-up, no app install.',
-  '',
-  '<b>All commands:</b>',
+  'I handle the rest — no sign-up needed.',
 ].join('\n');
 
 async function handleStart(ctx) {
@@ -120,26 +113,29 @@ async function handleBalances(ctx) {
       return;
     }
     const net = store.getNetBetween(groupId, r.senderId, target.id);
-    if (net.settled) { await reply(ctx, '✅ All settled with that person.'); return; }
+    if (net.settled) {
+      await reply(ctx, formatBox('All Settled', [`Nothing owed with ${renderMention(store.getName(target.id), target.mentionRef)}`]));
+      return;
+    }
     const otherName = store.getName(target.id);
     const line = net.owes === r.senderId
-      ? `You owe ${renderMention(otherName, target.mentionRef)} ${formatCurrency(net.amount)}`
-      : `${renderMention(otherName, target.mentionRef)} owes you ${formatCurrency(net.amount)}`;
-    await reply(ctx, line);
+      ? `You owe ${renderMention(otherName, target.mentionRef)}  ${formatCurrency(net.amount)}`
+      : `${renderMention(otherName, target.mentionRef)} owes you  ${formatCurrency(net.amount)}`;
+    await reply(ctx, formatBox('Balance', [line]));
     return;
   }
 
   const lines = store.getBalanceSummary(groupId, r.senderId);
   if (lines.length === 0) {
-    await reply(ctx, '✅ All settled up!');
+    await reply(ctx, formatBox('All Settled', ['Everyone is squared up.']));
     return;
   }
   const rendered = lines.map(l => {
     const link = renderUserLink(l.otherId);
-    if (l.direction === 'iOwe') return `• You owe ${link} ${formatCurrency(l.amount)}`;
-    return `• ${link} owes you ${formatCurrency(l.amount)}`;
+    if (l.direction === 'iOwe') return `You owe ${link}  ${formatCurrency(l.amount)}`;
+    return `${link} owes you  ${formatCurrency(l.amount)}`;
   });
-  await reply(ctx, rendered.join('\n'));
+  await reply(ctx, formatBox('Balances', rendered));
 }
 
 // ── /summary ─────────────────────────────────────────────────────────────────
@@ -154,9 +150,9 @@ async function handleSummary(ctx) {
     return;
   }
   const lines = simplified.map(t =>
-    `${renderUserLink(t.from)} owes ${renderUserLink(t.to)} ${formatCurrency(t.amount)}`
+    `${renderUserLink(t.from)} → ${renderUserLink(t.to)}  ${formatCurrency(t.amount)}`
   );
-  await reply(ctx, '💰 Final Summary:\n\n' + lines.join('\n'));
+  await reply(ctx, formatBox('Settlement Summary', lines, 'Minimum transfers to settle up'));
 }
 
 // ── /paid and /got ───────────────────────────────────────────────────────────
@@ -197,7 +193,7 @@ async function handleSettlementCommand(ctx, parsed) {
   }
 
   store.recordSettlement(groupId, fromId, toId, parsed.amount);
-  await reply(ctx, `✅ Recorded: ${renderUserLink(fromId)} paid ${renderUserLink(toId)} ${formatCurrency(parsed.amount)}`);
+  await reply(ctx, formatBox('Payment Recorded', [`${renderUserLink(fromId)} → ${renderUserLink(toId)}  ${formatCurrency(parsed.amount)}`], '/balances to check totals'));
 }
 
 async function handlePaid(ctx) {
@@ -219,7 +215,7 @@ async function handleGot(ctx) {
 async function handleSplit(ctx) {
   pollinateCache(ctx);
   if (ctx.chat.type === 'private') {
-    await reply(ctx, 'Add me to a group to start splitting expenses!');
+    await reply(ctx, '┌ Groups Only\n│\n│  Add me to a group to start splitting.\n└');
     return;
   }
   await startSplitWizard(ctx);
@@ -245,18 +241,21 @@ async function handleHistory(ctx) {
   let txs = store.getGroupTransactions(groupId);
   if (filterId) txs = txs.filter(t => t.participants.includes(filterId));
   txs = txs.slice(-count).reverse();
-  if (txs.length === 0) { await reply(ctx, 'No matching transactions.'); return; }
+  if (txs.length === 0) {
+    await reply(ctx, formatBox('History', ['No matching transactions.']));
+    return;
+  }
 
   const lines = txs.map((t, idx) => {
-    const date = new Date(t.timestamp).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' });
+    const date = new Date(t.timestamp).toLocaleString('en-IN', { dateStyle: 'short' });
     if (t.type === 'settlement') {
-      return `${idx + 1}. [${date}] ${renderUserLink(t.from)} → ${renderUserLink(t.to)}: ${formatCurrency(t.amount)}`;
+      return `${idx + 1}. ${renderUserLink(t.from)} → ${renderUserLink(t.to)}  ${formatCurrency(t.amount)}  <i>${date}</i>`;
     }
     const payer = Object.keys(t.contributions)[0];
-    const labelTxt = t.label ? ` (${escapeHtml(t.label)})` : '';
-    return `${idx + 1}. [${date}] ${renderUserLink(payer)} paid ${formatCurrency(t.amount)}${labelTxt}`;
+    const labelTxt = t.label ? `  ${escapeHtml(t.label)}` : '';
+    return `${idx + 1}. ${renderUserLink(payer)} paid ${formatCurrency(t.amount)}${labelTxt}  <i>${date}</i>`;
   });
-  await reply(ctx, lines.join('\n'));
+  await reply(ctx, formatBox('History', lines, '/delete N to remove one'));
 }
 
 // ── /delete ──────────────────────────────────────────────────────────────────
@@ -295,9 +294,9 @@ async function handleDelete(ctx) {
   const txs = store.getGroupTransactions(groupId).slice(-20).reverse();
 
   if (mode === 'list') {
-    if (txs.length === 0) { await reply(ctx, 'No transactions to delete.'); return; }
+    if (txs.length === 0) { await reply(ctx, formatBox('Delete', ['No transactions to delete.'])); return; }
     const kb = deleteSelectKeyboard(txs, userId);
-    await reply(ctx, 'Which transaction do you want to delete?', { reply_markup: kb });
+    await reply(ctx, '┌ Delete Transaction\n│\n│  Select one to remove:', { reply_markup: kb });
     return;
   }
 
@@ -350,10 +349,11 @@ async function handleDeleteCallback(ctx) {
 
   if (action === 'ok') {
     store.deleteTransaction(value, groupId);
+    const msg = '┌ Deleted\n│\n│  Transaction removed and balances updated.\n└';
     try {
-      await ctx.editMessageText('🗑 Transaction deleted.');
+      await ctx.editMessageText(msg);
     } catch (_) {
-      await ctx.reply('🗑 Transaction deleted.');
+      await ctx.reply(msg);
     }
     await ctx.answerCallbackQuery({ text: 'Deleted.' });
     return true;
@@ -363,7 +363,7 @@ async function handleDeleteCallback(ctx) {
     try {
       await ctx.deleteMessage();
     } catch (_) {
-      try { await ctx.editMessageText('✗ Cancelled.'); } catch (_e) {}
+      try { await ctx.editMessageText('└ Cancelled.'); } catch (_e) {}
     }
     await ctx.answerCallbackQuery({ text: 'Cancelled.' });
     return true;
@@ -381,13 +381,16 @@ async function handleResetAll(ctx) {
 
   if (!confirmed) {
     const txs = store.getGroupTransactions(groupId);
-    await reply(ctx,
-      `⚠️ This will permanently delete ${txs.length} transaction(s) and all balances for this group.\n` +
-      `Send <code>/resetall confirm</code> to proceed.`);
+    await reply(ctx, formatBox('Reset Warning', [
+      `This will permanently delete ${txs.length} transaction(s)`,
+      'and all balances for this group.',
+      '',
+      'Send /resetall confirm to proceed.',
+    ]));
     return;
   }
   store.resetAllGroupData(groupId);
-  await reply(ctx, '🧹 All group data wiped.');
+  await reply(ctx, formatBox('Reset Complete', ['All group data wiped. Starting fresh.']));
 }
 
 module.exports = {
