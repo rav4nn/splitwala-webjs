@@ -49,9 +49,11 @@ test('resolveByText: text_mention entity (user without @username) resolves via m
   assert.equal(res.id, '300');
 });
 
-test('resolveByText: unknown returns null', async () => {
+test('resolveByText: unknown @username returns synthetic fallback id', async () => {
   const r = createResolver(fakeCtx({ text: '/split 100 @ghost' }));
-  assert.equal(await r.resolveByText('@ghost'), null);
+  const result = await r.resolveByText('@ghost');
+  assert.equal(result?.id, '@ghost');
+  assert.equal(result?.mentionRef?.username, 'ghost');
 });
 
 test('listAllParticipants: returns everyone in cache (excluding bot, but bot is not seeded here)', async () => {

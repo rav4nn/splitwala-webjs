@@ -53,7 +53,10 @@ function createResolver(ctx) {
       if (/^@\w+$/.test(token)) {
         const found = memberCache.lookupByUsername(chatId, token);
         if (found) return { id: found.id, mentionRef: { type: 'username', username: found.username } };
-        return null;
+        // User not cached yet — use @username as synthetic ID (matches split wizard behaviour)
+        const uname = token.toLowerCase().replace(/^@/, '');
+        const syntheticId = `@${uname}`;
+        return { id: syntheticId, mentionRef: { type: 'username', username: uname } };
       }
 
       // Plain name match in cached members
