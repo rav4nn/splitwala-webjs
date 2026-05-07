@@ -55,7 +55,7 @@ function parseCallbackData(data) {
 
 // ── Keyboard builders ─────────────────────────────────────────────────────────
 
-const ANON_BOT_ID = '1087968824'; // @GroupAnonymousBot — anonymous admin placeholder
+const { isAnonBot, isAnonBotUsername } = memberCache;
 
 function buildPayerKeyboard(members, senderId) {
   const kb = new InlineKeyboard();
@@ -63,7 +63,7 @@ function buildPayerKeyboard(members, senderId) {
   let col = 1;
   for (const m of members) {
     if (m.userId === senderId) continue;
-    if (String(m.userId) === ANON_BOT_ID) continue;
+    if (isAnonBot(m.userId)) continue;
     if (col % 3 === 0) kb.row();
     kb.text(m.firstName, cd('payer', m.userId, senderId));
     col++;
@@ -75,7 +75,7 @@ function buildParticipantKeyboard(members, selected, senderId) {
   const kb = new InlineKeyboard();
   let col = 0;
   for (const m of members) {
-    if (String(m.userId) === ANON_BOT_ID) continue;
+    if (isAnonBot(m.userId)) continue;
     if (col > 0 && col % 3 === 0) kb.row();
     const tick = selected.has(m.userId) ? '✓ ' : '';
     kb.text(`${tick}${m.firstName}`, cd('toggle', m.userId, senderId));
@@ -141,10 +141,19 @@ function resolveParticipants(llmParticipants, senderId, chatId) {
       continue;
     }
     const uname = String(p).replace(/^@/, '');
+    if (isAnonBotUsername(uname)) continue;
     const byUsername = memberCache.lookupByUsername(chatId, uname);
-    if (byUsername) { resolved.push(byUsername.id); continue; }
+    if (byUsername) {
+      if (isAnonBot(byUsername.id)) continue;
+      resolved.push(byUsername.id);
+      continue;
+    }
     const byName = memberCache.lookupByName(chatId, p);
-    if (byName) { resolved.push(byName.id); continue; }
+    if (byName) {
+      if (isAnonBot(byName.id)) continue;
+      resolved.push(byName.id);
+      continue;
+    }
     return null; // unresolvable → fall back to keyboard
   }
 
@@ -459,12 +468,15 @@ async function startSplitWizard(ctx) {
     if (e.type === 'mention') {
       const uname = text.slice(e.offset + 1, e.offset + e.length).toLowerCase();
       if (!uname) continue;
+      if (isAnonBotUsername(uname)) continue;
       const cached = memberCache.lookupByUsername(chatId, uname);
       const uid = cached ? cached.id : `@${uname}`;
+      if (isAnonBot(uid)) continue;
       // Register a placeholder name so store.getName() shows something readable
       if (!cached) store.registerName(uid, `@${uname}`);
       entityParticipantIds.push(uid);
     } else if (e.type === 'text_mention' && e.user) {
+      if (isAnonBot(e.user.id)) continue;
       memberCache.recordMember(chatId, e.user);
       entityParticipantIds.push(String(e.user.id));
     }

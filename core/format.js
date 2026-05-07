@@ -60,7 +60,11 @@ const HELP_TEXT = [
   '',
   '━━━━━━━━━━━━━━━━━━━━━━━━',
   'Just type naturally and use tags — I understand',
-  '"/split 800 for pizza among @raj and @priya paid by @me"',
+  '"/split 800 for pizza among @raj and @priya paid by me"',
+  '',
+  'Tip: tag others with @username. Telegram won\'t autocomplete',
+  'you, so type "me" to refer to yourself (e.g. "me 200 @raj 400").',
+  'You\'re always auto-included as a participant.',
 ].join('\n');
 
 function formatHelpText() {

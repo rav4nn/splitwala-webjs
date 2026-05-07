@@ -48,7 +48,7 @@ function notifyFail(msg) {
 
 // ── Always pollinate the member cache from any incoming update ──────────────
 bot.use(async (ctx, next) => {
-  if (ctx.chat?.id && ctx.from) {
+  if (ctx.chat?.id && ctx.from && !memberCache.isAnonBot(ctx.from.id)) {
     memberCache.recordMember(ctx.chat.id, ctx.from);
     // First time we see this user's real ID: migrate any @username ledger entries
     if (ctx.from.username) {

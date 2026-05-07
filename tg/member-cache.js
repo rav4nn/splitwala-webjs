@@ -7,6 +7,18 @@
 
 const db = require('./db-tg');
 
+// Telegram's anonymous-admin placeholder. When an admin posts as the group,
+// `from` is this bot (first_name = "Group"). It must never be a participant,
+// payer, or otherwise treated as a real user.
+const ANON_BOT_ID       = '1087968824';
+const ANON_BOT_USERNAME = 'groupanonymousbot';
+function isAnonBot(userId) {
+  return String(userId) === ANON_BOT_ID;
+}
+function isAnonBotUsername(username) {
+  return String(username || '').replace(/^@/, '').toLowerCase() === ANON_BOT_USERNAME;
+}
+
 const cache = new Map();
 const loadedChats = new Set();
 
@@ -28,6 +40,7 @@ function ensureChat(chatId) {
 
 function recordMember(chatId, user) {
   if (!user || !user.id) return;
+  if (isAnonBot(user.id) || isAnonBotUsername(user.username)) return;
   const members = ensureChat(chatId);
   const name = [user.first_name, user.last_name].filter(Boolean).join(' ').trim()
             || user.username
@@ -71,4 +84,7 @@ function getKnownMembers(chatId) {
     .sort((a, b) => a.firstName.localeCompare(b.firstName));
 }
 
-module.exports = { recordMember, listMembers, lookupByUsername, lookupByName, getKnownMembers };
+module.exports = {
+  recordMember, listMembers, lookupByUsername, lookupByName, getKnownMembers,
+  ANON_BOT_ID, ANON_BOT_USERNAME, isAnonBot, isAnonBotUsername,
+};
