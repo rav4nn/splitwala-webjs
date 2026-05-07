@@ -36,6 +36,13 @@ function escapeHtml(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+// Telegram-safe error: escape all three args (problem/fix/example) since the
+// reply is sent with parse_mode: 'HTML'. Static strings like "/paid <amount>…"
+// would otherwise crash the send with "Unsupported start tag".
+function tgError(problem, fix, example) {
+  return formatError(escapeHtml(problem), escapeHtml(fix), escapeHtml(example));
+}
+
 /** Render a user as a clickable tg://user deep link. */
 function renderUserLink(userId) {
   const id = String(userId);
@@ -113,7 +120,7 @@ async function handleBalances(ctx) {
   if (targetToken) {
     const target = await r.resolveByText(targetToken);
     if (!target) {
-      await reply(ctx, formatError(`Couldn't find user "${targetToken}" in this group.`,
+      await reply(ctx, tgError(`Couldn't find user "${targetToken}" in this group.`,
         'Mention them with @username or reply to one of their messages.', '/balances @alice'));
       return;
     }
@@ -168,7 +175,7 @@ async function handleSettlementCommand(ctx, parsed) {
   const groupId = String(ctx.chat.id);
 
   if (parsed.error) {
-    await reply(ctx, formatError(parsed.error,
+    await reply(ctx, tgError(parsed.error,
       'Use: /paid <amount> [to/from @person]', '/paid 200 to @alice'));
     return;
   }
@@ -182,17 +189,17 @@ async function handleSettlementCommand(ctx, parsed) {
     : (parsed.fromToken ? r.senderId : null);
 
   if (!fromId || !toId) {
-    await reply(ctx, formatError('Could not resolve sender or recipient.',
+    await reply(ctx, tgError('Could not resolve sender or recipient.',
       'Tag the person with @username or reply to a message of theirs.', '/paid 100 to @alice'));
     return;
   }
   if (fromId === toId) {
-    await reply(ctx, formatError('Sender and recipient are the same person.',
+    await reply(ctx, tgError('Sender and recipient are the same person.',
       'Pick two different people.', '/paid 100 to @alice'));
     return;
   }
   if (!parsed.amount || !(parsed.amount > 0)) {
-    await reply(ctx, formatError('Amount must be a positive number.',
+    await reply(ctx, tgError('Amount must be a positive number.',
       'Use: /paid <amount> to @person', '/paid 200 to @alice'));
     return;
   }
@@ -233,12 +240,12 @@ async function handleHistory(ctx) {
   const r = createResolver(ctx);
   const groupId = String(ctx.chat.id);
   const { count, filterToken, error } = parseHistoryArgs(cmdText(ctx));
-  if (error) { await reply(ctx, formatError(error, 'Use: /history [N] [@person]', '/history 10 @alice')); return; }
+  if (error) { await reply(ctx, tgError(error, 'Use: /history [N] [@person]', '/history 10 @alice')); return; }
 
   let filterId = null;
   if (filterToken) {
     const found = await r.resolveByText(filterToken);
-    if (!found) { await reply(ctx, formatError(`Couldn't find user "${filterToken}".`,
+    if (!found) { await reply(ctx, tgError(`Couldn't find user "${filterToken}".`,
       'Tag with @username or reply.', '/history 10 @alice')); return; }
     filterId = found.id;
   }
@@ -294,7 +301,7 @@ async function handleDelete(ctx) {
   const groupId  = String(ctx.chat.id);
   const userId   = String(ctx.from.id);
   const { mode, index, error } = parseDeleteArgs(cmdText(ctx));
-  if (error) { await reply(ctx, formatError(error, 'Use: /delete N (1–N)', '/delete 2')); return; }
+  if (error) { await reply(ctx, tgError(error, 'Use: /delete N (1–N)', '/delete 2')); return; }
 
   const txs = store.getGroupTransactions(groupId).slice(-20).reverse();
 
@@ -306,7 +313,7 @@ async function handleDelete(ctx) {
   }
 
   if (index < 1 || index > txs.length) {
-    await reply(ctx, formatError(`No transaction #${index}.`, 'Use /delete to see the list.', '/delete'));
+    await reply(ctx, tgError(`No transaction #${index}.`, 'Use /delete to see the list.', '/delete'));
     return;
   }
   const target = txs[index - 1];

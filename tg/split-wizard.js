@@ -113,17 +113,22 @@ function buildConfirmText(w) {
   const label    = w.label ? `${emojiForLabel(w.label)} <b>${escHtml(w.label)}</b> — ` : '';
   const payerN   = escHtml(displayName(w.payer, w.chatId));
   const count    = w.participants.length;
-  const share    = Math.round((w.amount / count) * 100) / 100;
-  const lines    = w.participants.map(uid => `  ${escHtml(displayName(uid, w.chatId))}  ${formatCurrency(share)}`);
+  const equalShare = Math.round((w.amount / count) * 100) / 100;
+  const shareFor = (uid) => w.splitShares ? w.splitShares[uid] : equalShare;
+  const lines    = w.participants.map(uid => `  ${escHtml(displayName(uid, w.chatId))}  ${formatCurrency(shareFor(uid))}`);
+  const splitRow = w.splitShares ? `Split: ${count} people (custom)` : `Split: ${count} people`;
+  const footer   = w.llmLowConfidence
+    ? '└ Not 100% sure I read that right — please double-check.'
+    : '└ Confirm?';
   return [
     `┌ ${label}${formatCurrency(w.amount)}`,
     '│',
     `│  Paid by: ${payerN}`,
-    `│  Split: ${count} people`,
+    `│  ${splitRow}`,
     '│',
     ...lines.map(l => `│${l}`),
     '│',
-    '└ Confirm?',
+    footer,
   ].join('\n');
 }
 
@@ -162,10 +167,93 @@ function resolveParticipants(llmParticipants, senderId, chatId) {
   return deduped;
 }
 
+// ── Per-person amount resolution from LLM split_values ────────────────────────
+//
+// Returns { uid: amount } if every key resolves cleanly and the values pass
+// validation (exact: sum within 0.50 of total; percent: sum within 1% of 100).
+// Returns null if anything is off — caller falls back to equal split.
+
+function roundCurrency(n) { return Math.round(n * 100) / 100; }
+
+function resolveSplitValues(intent, senderId, chatId) {
+  if (!intent || (intent.split_type !== 'exact' && intent.split_type !== 'percent')) return null;
+  const sv = intent.split_values;
+  if (!sv || typeof sv !== 'object' || Array.isArray(sv)) return null;
+  const entries = Object.entries(sv);
+  if (entries.length < 2) return null;
+
+  const resolved = {};
+  for (const [key, rawValue] of entries) {
+    const num = Number(rawValue);
+    if (!isFinite(num) || num <= 0) return null;
+
+    const lk = String(key).toLowerCase().trim();
+    const lkClean = lk.replace(/^@/, '');
+
+    let uid = null;
+    if (['sender', 'me', 'i', 'mera', 'main', 'mai'].includes(lk)) {
+      uid = senderId;
+    } else if (isAnonBotUsername(lkClean)) {
+      return null;
+    } else {
+      const byUsername = memberCache.lookupByUsername(chatId, lkClean);
+      if (byUsername && !isAnonBot(byUsername.id)) {
+        uid = byUsername.id;
+      } else {
+        const byName = memberCache.lookupByName(chatId, key);
+        if (byName && !isAnonBot(byName.id)) uid = byName.id;
+      }
+    }
+    if (!uid)            return null; // unresolvable participant
+    if (resolved[uid])   return null; // duplicate
+    resolved[uid] = num;
+  }
+
+  if (intent.split_type === 'percent') {
+    const sum = Object.values(resolved).reduce((a, b) => a + b, 0);
+    if (Math.abs(sum - 100) > 1) return null;
+    for (const uid of Object.keys(resolved)) {
+      resolved[uid] = roundCurrency(intent.amount * resolved[uid] / 100);
+    }
+    // Push any rounding remainder onto the first participant so totals stay exact.
+    const total = Object.values(resolved).reduce((a, b) => a + b, 0);
+    const delta = roundCurrency(intent.amount - total);
+    if (Math.abs(delta) >= 0.01) {
+      const firstUid = Object.keys(resolved)[0];
+      resolved[firstUid] = roundCurrency(resolved[firstUid] + delta);
+    }
+  } else {
+    const sum = Object.values(resolved).reduce((a, b) => a + b, 0);
+    if (Math.abs(sum - intent.amount) > 0.5) return null;
+    // Snap to exact total
+    for (const uid of Object.keys(resolved)) resolved[uid] = roundCurrency(resolved[uid]);
+    const total = Object.values(resolved).reduce((a, b) => a + b, 0);
+    const delta = roundCurrency(intent.amount - total);
+    if (Math.abs(delta) >= 0.01) {
+      const firstUid = Object.keys(resolved)[0];
+      resolved[firstUid] = roundCurrency(resolved[firstUid] + delta);
+    }
+  }
+
+  return resolved;
+}
+
 // ── Core wizard stepper ───────────────────────────────────────────────────────
 
 async function advanceSplitWizard(ctx, w) {
   const { chatId, userId: senderId } = w;
+
+  // One-time notice when the LLM call failed (network / no key / bad JSON) so
+  // the user understands why the wizard is asking everything from scratch.
+  if (w.llmFailed && !w.noticeShown) {
+    w.noticeShown = true;
+    setWizard(chatId, senderId, w);
+    try {
+      await ctx.reply(
+        '┌ Heads up\n│\n│  I couldn\'t parse your message just now —\n│  let\'s do this step by step.\n└'
+      );
+    } catch (_) {}
+  }
 
   // Step 1 — need amount
   if (w.amount === null || w.amount === undefined) {
@@ -388,16 +476,18 @@ async function handleSplitCallback(ctx) {
 
     const participants  = w.participants;
     const count         = participants.length;
-    const share         = Math.round((w.amount / count) * 100) / 100;
+    const equalShare    = Math.round((w.amount / count) * 100) / 100;
+    const shareFor      = (uid) => w.splitShares ? w.splitShares[uid] : equalShare;
     const contributions = { [w.payer]: w.amount };
     const liabilities   = {};
     const balanceDeltas = [];
 
     for (const uid of participants) {
-      liabilities[uid] = share;
+      const s = shareFor(uid);
+      liabilities[uid] = s;
       if (uid !== w.payer) {
-        store.updateBalance(w.groupId, uid, w.payer, share);
-        balanceDeltas.push({ debtor: uid, creditor: w.payer, amount: share });
+        store.updateBalance(w.groupId, uid, w.payer, s);
+        balanceDeltas.push({ debtor: uid, creditor: w.payer, amount: s });
       }
     }
 
@@ -427,7 +517,7 @@ async function handleSplitCallback(ctx) {
 
     const labelTxt = w.label ? ` ${emojiForLabel(w.label)} ${escHtml(w.label)}` : '';
     const payerN   = renderName(w.payer);
-    const splitLines = participants.map(uid => `│  ${renderName(uid)}  ${formatCurrency(share)}`);
+    const splitLines = participants.map(uid => `│  ${renderName(uid)}  ${formatCurrency(shareFor(uid))}`);
     const result   = `┌ Expense Added${labelTxt}\n│\n│  ${formatCurrency(w.amount)} paid by ${payerN}\n│\n${splitLines.join('\n')}\n│\n└ /balances to check totals`;
 
     // Edit confirm message → final result (removes buttons)
@@ -487,11 +577,14 @@ async function startSplitWizard(ctx) {
 
   // ── Step B: LLM parse for amount, label, payer intent ──────────────────────
   let intent = { amount: null, payer: null, participants: null, label: null, confidence: 'low' };
+  let llmFailed = false;
   try {
     intent = await parseSplitIntent(text, memberCache.getKnownMembers(chatId));
   } catch (err) {
     console.error('[split-wizard] LLM error:', err.message);
+    llmFailed = true;
   }
+  const llmLowConfidence = !llmFailed && intent.confidence === 'low';
 
   // Resolve payer
   let payer = null;
@@ -525,12 +618,30 @@ async function startSplitWizard(ctx) {
     participants,
     participantsToggle: null,
     llmWasAll,
+    splitShares:        null,
+    llmFailed,
+    llmLowConfidence,
+    noticeShown:        false,
     questionMsgIds:     [],
     confirmMsgId:       null,
   };
+
+  // Honour explicit per-person amounts from the LLM when present (exact/percent).
+  // Falls back to equal split when validation fails.
+  if (typeof intent.amount === 'number' && intent.amount > 0) {
+    const shares = resolveSplitValues(intent, senderId, chatId);
+    if (shares) {
+      w.splitShares  = shares;
+      w.participants = Object.keys(shares);
+    }
+  }
 
   setWizard(chatId, senderId, w);
   await advanceSplitWizard(ctx, w);
 }
 
-module.exports = { startSplitWizard, handleSplitCallback, handleWizardText, getWizard };
+module.exports = {
+  startSplitWizard, handleSplitCallback, handleWizardText, getWizard,
+  // Exposed for unit tests:
+  resolveSplitValues,
+};
