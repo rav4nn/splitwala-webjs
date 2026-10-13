@@ -1,4 +1,5 @@
 import CTAButton from './CTAButton';
+import { CookieSettingsButton } from './CookieConsent';
 
 export default function FooterCTA() {
   return (
@@ -17,9 +18,10 @@ export default function FooterCTA() {
           <img src="/splitwala_logo.png" alt="SplitWala" className="w-6 h-6 rounded-md outline outline-1 outline-white/10" />
           <span className="text-white/40 text-sm">SplitWala</span>
         </div>
-        <div className="flex items-center gap-6 text-sm text-white/40">
+        <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-white/40">
           <a href="https://t.me/splitwala_bot" target="_blank" rel="noopener noreferrer" className="hover:text-white/70 transition-colors">@splitwala_bot</a>
           <a href="https://hardeep.cv" target="_blank" rel="noopener noreferrer" className="hover:text-white/70 transition-colors">hardeep.cv</a>
+          <CookieSettingsButton className="hover:text-white/70 transition-colors cursor-pointer rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/70" />
         </div>
         <a
           href="https://x.com/rav4nn"
