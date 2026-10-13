@@ -14,9 +14,11 @@ function loadPostHog(): Promise<PostHog> {
     if (!ph.__loaded) {
       ph.init(POSTHOG_TOKEN, {
         api_host: 'https://eu.i.posthog.com',
-        defaults: '2026-05-30',
+        defaults: '2026-08-30',
         cookieless_mode: 'on_reject',
         opt_out_capturing_by_default: true,
+        opt_out_persistence_by_default: true, // opting out also deletes its storage (same as CallLane)
+        cross_subdomain_cookie: false, // own cookie per *.hardeep.cv site; no cross-site interference
         opt_out_capturing_persistence_type: 'localStorage',
         person_profiles: 'identified_only',
         autocapture: false,
@@ -80,7 +82,7 @@ export default function CookieConsent() {
     <div
       role="region"
       aria-label="Cookie choice"
-      className="fixed z-50 left-4 right-4 bottom-20 sm:bottom-5 sm:right-auto sm:left-5 sm:max-w-sm bg-white rounded-2xl rounded-bl-sm border border-black/5 shadow-[0_8px_32px_0_rgba(0,0,0,0.12)] p-4 animate-slide-up motion-reduce:animate-none"
+      className="fixed z-50 left-4 right-4 bottom-20 sm:bottom-5 sm:left-auto sm:right-5 sm:max-w-sm bg-white rounded-2xl rounded-bl-sm border border-black/5 shadow-[0_8px_32px_0_rgba(0,0,0,0.12)] p-4 animate-slide-up motion-reduce:animate-none"
     >
       <div className="flex gap-3">
         <img
